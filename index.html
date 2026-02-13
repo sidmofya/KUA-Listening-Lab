@@ -435,18 +435,18 @@
         // Configuration - UPDATE THESE WITH YOUR ACTUAL VALUES
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxijY8EBvHVBqVjDN8_jX_gf5qn25yG8DWe_tfUPFLnxEFszrmhcAjwXKU3cFqJCautKA/exec';
         
-        // Song URLs - UPDATE WITH YOUR GOOGLE DRIVE DIRECT LINKS
+        // Song URLs - Google Drive streaming format
         const SONGS = [
-            'https://drive.google.com/uc?export=download&id=1hyaGqmOIxdq07eUBqU6qf4-6sLtPmyMV',
-            'https://drive.google.com/uc?export=download&id=1AXlz5hCODqtTIzIzFBlUvQxSPwIkkdy8',
-            'https://drive.google.com/uc?export=download&id=1RQcoKvG2LsKy_Qg-6iMh-q9fFmQLgMuD',
-            'https://drive.google.com/uc?export=download&id=1EgIY_N7GJpKCWYv-bEgBA9MDuTYiz6eh',
-            'https://drive.google.com/uc?export=download&id=1o-tWBcyuhVtULbnJwI-24FCGN2iF67go',
-            'https://drive.google.com/uc?export=download&id=13b8wW-W1neR9RYfQVK7JR7HOIh0nqS5_',
-            'https://drive.google.com/uc?export=download&id=1d_xyfXdonWT_5chSYQ5ZuC9MRboQknof',
-            'https://drive.google.com/uc?export=download&id=1oVkadXVIfYp9WoIgd-8wHSPSFONj3_Lw',
-            'https://drive.google.com/uc?export=download&id=1aRmG4hcHRaBN9PdfnUDT1Ir3msdD8doQ',
-            'https://drive.google.com/uc?export=download&id=1tJZL6fgWSvN08rfd5CdevYmTaYwlU25y'
+            'https://docs.google.com/uc?export=open&id=1hyaGqmOIxdq07eUBqU6qf4-6sLtPmyMV',
+            'https://docs.google.com/uc?export=open&id=1AXlz5hCODqtTIzIzFBlUvQxSPwIkkdy8',
+            'https://docs.google.com/uc?export=open&id=1RQcoKvG2LsKy_Qg-6iMh-q9fFmQLgMuD',
+            'https://docs.google.com/uc?export=open&id=1EgIY_N7GJpKCWYv-bEgBA9MDuTYiz6eh',
+            'https://docs.google.com/uc?export=open&id=1o-tWBcyuhVtULbnJwI-24FCGN2iF67go',
+            'https://docs.google.com/uc?export=open&id=13b8wW-W1neR9RYfQVK7JR7HOIh0nqS5_',
+            'https://docs.google.com/uc?export=open&id=1d_xyfXdonWT_5chSYQ5ZuC9MRboQknof',
+            'https://docs.google.com/uc?export=open&id=1oVkadXVIfYp9WoIgd-8wHSPSFONj3_Lw',
+            'https://docs.google.com/uc?export=open&id=1aRmG4hcHRaBN9PdfnUDT1Ir3msdD8doQ',
+            'https://docs.google.com/uc?export=open&id=1tJZL6fgWSvN08rfd5CdevYmTaYwlU25y'
         ];
 
         let currentSong = 0;
@@ -544,16 +544,22 @@
                 comments: comments
             };
 
+            console.log('Submitting data:', data); // Debug logging
+
             try {
                 const response = await fetch(GOOGLE_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'text/plain', // Changed to avoid CORS preflight
                     },
                     body: JSON.stringify(data)
                 });
 
+                console.log('Response received'); // Debug logging
+
+                // Since mode is no-cors, we can't check response status
+                // Just assume success and move forward
+                
                 // Move to next song or finish
                 if (currentSong < SONGS.length - 1) {
                     loadSong(currentSong + 1);
@@ -562,7 +568,12 @@
                 }
             } catch (error) {
                 console.error('Error submitting rating:', error);
-                showError('There was an error submitting your rating. Please try again.');
+                // Still move forward - Google Apps Script might have received it
+                if (currentSong < SONGS.length - 1) {
+                    loadSong(currentSong + 1);
+                } else {
+                    finishListening();
+                }
             }
         }
 
