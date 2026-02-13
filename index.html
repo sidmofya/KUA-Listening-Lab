@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KŮA - Listening Lab</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: #0a0a0a;
+            border: 3px solid #b87333;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(184, 115, 51, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            color: #b87333;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .header p {
+            color: #d4a574;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        .welcome-screen, .listening-screen, .thank-you-screen {
+            display: none;
+        }
+
+        .welcome-screen.active, .listening-screen.active, .thank-you-screen.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b87333;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #b87333;
+            border-radius: 8px;
+            font-size: 16px;
+            background: #1a1a1a;
+            color: #d4a574;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #d4a574;
+            box-shadow: 0 0 0 3px rgba(184, 115, 51, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #b87333 0%, #8b4513 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(184, 115, 51, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .progress-bar {
+            margin-bottom: 30px;
+        }
+
+        .progress-track {
+            background: #1a1a1a;
+            border: 2px solid #b87333;
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #b87333 0%, #d4a574 100%);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .song-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .song-number {
+            display: inline-block;
+            background: linear-gradient(135deg, #b87333 0%, #8b4513 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .audio-player {
+            margin: 30px 0;
+            padding: 20px;
+            background: #1a1a1a;
+            border: 2px solid #b87333;
+            border-radius: 12px;
+        }
+
+        audio {
+            width: 100%;
+            outline: none;
+        }
+
+        audio::-webkit-media-controls-panel {
+            background-color: #0a0a0a;
+        }
+
+        .rating-section {
+            margin-top: 30px;
+        }
+
+        .rating-item {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #1a1a1a;
+            border: 2px solid #b87333;
+            border-radius: 12px;
+        }
+
+        .rating-item h3 {
+            color: #b87333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .rating-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+        }
+
+        .rating-btn {
+            flex: 1;
+            padding: 12px;
+            background: #0a0a0a;
+            border: 2px solid #b87333;
+            border-radius: 8px;
+            color: #d4a574;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .rating-btn:hover {
+            background: #b87333;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .rating-btn.selected {
+            background: linear-gradient(135deg, #b87333 0%, #8b4513 100%);
+            color: white;
+            border-color: #d4a574;
+        }
+
+        .comments-section {
+            margin-top: 25px;
+        }
+
+        .comments-section label {
+            display: block;
+            color: #b87333;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .comments-section textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #b87333;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+            background: #1a1a1a;
+            color: #d4a574;
+        }
+
+        .comments-section textarea:focus {
+            outline: none;
+            border-color: #d4a574;
+            box-shadow: 0 0 0 3px rgba(184, 115, 51, 0.1);
+        }
+
+        .thank-you-screen {
+            text-align: center;
+        }
+
+        .thank-you-screen h2 {
+            color: #b87333;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        .thank-you-screen p {
+            color: #d4a574;
+            font-size: 1.1em;
+            line-height: 1.8;
+        }
+
+        .intro-text {
+            color: #d4a574;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .intro-text strong {
+            color: #b87333;
+        }
+
+        .intro-text em {
+            color: #8b4513;
+            font-style: italic;
+        }
+
+        .error-message {
+            background: #ff4444;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .rating-buttons {
+                gap: 5px;
+            }
+
+            .rating-btn {
+                padding: 10px 5px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Welcome Screen -->
+        <div class="welcome-screen active" id="welcomeScreen">
+            <div class="header">
+                <h1>KŮA LISTENING LAB</h1>
+            </div>
+            <p class="intro-text">
+                Welcome to the listening lab for <strong>KŮA's</strong> upcoming releases.
+            </p>
+            <p class="intro-text">
+                You'll hear songs created using modern AI-assisted production. Your honest feedback helps us decide which tracks are ready for release.
+            </p>
+            <p class="intro-text">
+                <em>Rate each song on 5 dimensions using a 1-5 scale. Be honest — only the best tracks will make it through.</em>
+            </p>
+            <div class="input-group">
+                <label for="listenerName">Your First Name</label>
+                <input type="text" id="listenerName" placeholder="Enter your first name" required>
+            </div>
+            <button class="btn" onclick="startListening()">Begin Listening</button>
+        </div>
+
+        <!-- Listening Screen -->
+        <div class="listening-screen" id="listeningScreen">
+            <div class="progress-bar">
+                <div class="progress-track">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="song-info">
+                <span class="song-number" id="songNumber">Track 1 of 10</span>
+            </div>
+
+            <div class="audio-player">
+                <audio id="audioPlayer" controls>
+                    <source id="audioSource" src="" type="audio/mpeg">
+                    Your browser does not support the audio element.
+                </audio>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="rating-section">
+                <div class="rating-item">
+                    <h3>1. Does this feel authentic? (Does it have soul/emotional truth?)</h3>
+                    <div class="rating-buttons" id="authentic-buttons">
+                        <button class="rating-btn" onclick="setRating('authentic', 1)">1<br><small>No</small></button>
+                        <button class="rating-btn" onclick="setRating('authentic', 2)">2</button>
+                        <button class="rating-btn" onclick="setRating('authentic', 3)">3</button>
+                        <button class="rating-btn" onclick="setRating('authentic', 4)">4</button>
+                        <button class="rating-btn" onclick="setRating('authentic', 5)">5<br><small>Yes</small></button>
+                    </div>
+                </div>
+
+                <div class="rating-item">
+                    <h3>2. Production quality (Does it sound professional/release-ready?)</h3>
+                    <div class="rating-buttons" id="production-buttons">
+                        <button class="rating-btn" onclick="setRating('production', 1)">1<br><small>Weak</small></button>
+                        <button class="rating-btn" onclick="setRating('production', 2)">2</button>
+                        <button class="rating-btn" onclick="setRating('production', 3)">3</button>
+                        <button class="rating-btn" onclick="setRating('production', 4)">4</button>
+                        <button class="rating-btn" onclick="setRating('production', 5)">5<br><small>Pro</small></button>
+                    </div>
+                </div>
+
+                <div class="rating-item">
+                    <h3>3. Emotional impact (Does it make you feel something?)</h3>
+                    <div class="rating-buttons" id="emotional-buttons">
+                        <button class="rating-btn" onclick="setRating('emotional', 1)">1<br><small>No</small></button>
+                        <button class="rating-btn" onclick="setRating('emotional', 2)">2</button>
+                        <button class="rating-btn" onclick="setRating('emotional', 3)">3</button>
+                        <button class="rating-btn" onclick="setRating('emotional', 4)">4</button>
+                        <button class="rating-btn" onclick="setRating('emotional', 5)">5<br><small>Yes</small></button>
+                    </div>
+                </div>
+
+                <div class="rating-item">
+                    <h3>4. Replay value (Would you listen again?)</h3>
+                    <div class="rating-buttons" id="replay-buttons">
+                        <button class="rating-btn" onclick="setRating('replay', 1)">1<br><small>No</small></button>
+                        <button class="rating-btn" onclick="setRating('replay', 2)">2</button>
+                        <button class="rating-btn" onclick="setRating('replay', 3)">3</button>
+                        <button class="rating-btn" onclick="setRating('replay', 4)">4</button>
+                        <button class="rating-btn" onclick="setRating('replay', 5)">5<br><small>Yes</small></button>
+                    </div>
+                </div>
+
+                <div class="rating-item">
+                    <h3>5. Commercial potential (Can you imagine this on playlists?)</h3>
+                    <div class="rating-buttons" id="commercial-buttons">
+                        <button class="rating-btn" onclick="setRating('commercial', 1)">1<br><small>No</small></button>
+                        <button class="rating-btn" onclick="setRating('commercial', 2)">2</button>
+                        <button class="rating-btn" onclick="setRating('commercial', 3)">3</button>
+                        <button class="rating-btn" onclick="setRating('commercial', 4)">4</button>
+                        <button class="rating-btn" onclick="setRating('commercial', 5)">5<br><small>Yes</small></button>
+                    </div>
+                </div>
+
+                <div class="comments-section">
+                    <label for="comments">Comments (Optional)</label>
+                    <textarea id="comments" placeholder="Any thoughts? What worked? What didn't?"></textarea>
+                </div>
+
+                <button class="btn" id="submitBtn" onclick="submitRating()" disabled>Submit Rating</button>
+            </div>
+        </div>
+
+        <!-- Thank You Screen -->
+        <div class="thank-you-screen" id="thankYouScreen">
+            <div class="header">
+                <h2>Thank You! 🎵</h2>
+            </div>
+            <p class="intro-text">
+                Your feedback has been recorded.
+            </p>
+            <p class="intro-text">
+                Your honest ratings help ensure only the best tracks get released. This is how we maintain quality in an AI-assisted production world.
+            </p>
+            <p class="intro-text" style="margin-top: 30px;">
+                <strong>— KŮA</strong>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - UPDATE THESE WITH YOUR ACTUAL VALUES
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxijY8EBvHVBqVjDN8_jX_gf5qn25yG8DWe_tfUPFLnxEFszrmhcAjwXKU3cFqJCautKA/exec';
+        
+        // Song URLs - UPDATE WITH YOUR GOOGLE DRIVE DIRECT LINKS
+        const SONGS = [
+            'https://drive.google.com/uc?export=download&id=1hyaGqmOIxdq07eUBqU6qf4-6sLtPmyMV',
+            'https://drive.google.com/uc?export=download&id=1AXlz5hCODqtTIzIzFBlUvQxSPwIkkdy8',
+            'https://drive.google.com/uc?export=download&id=1RQcoKvG2LsKy_Qg-6iMh-q9fFmQLgMuD',
+            'https://drive.google.com/uc?export=download&id=1EgIY_N7GJpKCWYv-bEgBA9MDuTYiz6eh',
+            'https://drive.google.com/uc?export=download&id=1o-tWBcyuhVtULbnJwI-24FCGN2iF67go',
+            'https://drive.google.com/uc?export=download&id=13b8wW-W1neR9RYfQVK7JR7HOIh0nqS5_',
+            'https://drive.google.com/uc?export=download&id=1d_xyfXdonWT_5chSYQ5ZuC9MRboQknof',
+            'https://drive.google.com/uc?export=download&id=1oVkadXVIfYp9WoIgd-8wHSPSFONj3_Lw',
+            'https://drive.google.com/uc?export=download&id=1aRmG4hcHRaBN9PdfnUDT1Ir3msdD8doQ',
+            'https://drive.google.com/uc?export=download&id=1tJZL6fgWSvN08rfd5CdevYmTaYwlU25y'
+        ];
+
+        let currentSong = 0;
+        let listenerName = '';
+        let ratings = {
+            authentic: null,
+            production: null,
+            emotional: null,
+            replay: null,
+            commercial: null
+        };
+
+        function startListening() {
+            const nameInput = document.getElementById('listenerName');
+            listenerName = nameInput.value.trim();
+            
+            if (!listenerName) {
+                alert('Please enter your first name');
+                return;
+            }
+
+            document.getElementById('welcomeScreen').classList.remove('active');
+            document.getElementById('listeningScreen').classList.add('active');
+            
+            loadSong(0);
+        }
+
+        function loadSong(index) {
+            currentSong = index;
+            const audioSource = document.getElementById('audioSource');
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            audioSource.src = SONGS[index];
+            audioPlayer.load();
+            
+            // Update UI
+            document.getElementById('songNumber').textContent = `Track ${index + 1} of ${SONGS.length}`;
+            const progress = ((index) / SONGS.length) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+            
+            // Reset ratings
+            resetRatings();
+            document.getElementById('comments').value = '';
+        }
+
+        function resetRatings() {
+            ratings = {
+                authentic: null,
+                production: null,
+                emotional: null,
+                replay: null,
+                commercial: null
+            };
+            
+            // Clear all selected buttons
+            document.querySelectorAll('.rating-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            updateSubmitButton();
+        }
+
+        function setRating(category, value) {
+            ratings[category] = value;
+            
+            // Update button states
+            const buttons = document.getElementById(`${category}-buttons`).children;
+            for (let i = 0; i < buttons.length; i++) {
+                buttons[i].classList.remove('selected');
+            }
+            buttons[value - 1].classList.add('selected');
+            
+            updateSubmitButton();
+        }
+
+        function updateSubmitButton() {
+            const allRated = Object.values(ratings).every(r => r !== null);
+            document.getElementById('submitBtn').disabled = !allRated;
+        }
+
+        async function submitRating() {
+            const comments = document.getElementById('comments').value;
+            
+            const data = {
+                timestamp: new Date().toISOString(),
+                listenerName: listenerName,
+                songNumber: currentSong + 1,
+                authentic: ratings.authentic,
+                production: ratings.production,
+                emotional: ratings.emotional,
+                replay: ratings.replay,
+                commercial: ratings.commercial,
+                average: ((ratings.authentic + ratings.production + ratings.emotional + 
+                          ratings.replay + ratings.commercial) / 5).toFixed(2),
+                comments: comments
+            };
+
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                // Move to next song or finish
+                if (currentSong < SONGS.length - 1) {
+                    loadSong(currentSong + 1);
+                } else {
+                    finishListening();
+                }
+            } catch (error) {
+                console.error('Error submitting rating:', error);
+                showError('There was an error submitting your rating. Please try again.');
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => errorDiv.classList.remove('show'), 5000);
+        }
+
+        function finishListening() {
+            document.getElementById('listeningScreen').classList.remove('active');
+            document.getElementById('thankYouScreen').classList.add('active');
+            document.getElementById('progressFill').style.width = '100%';
+        }
+    </script>
+</body>
+</html>
