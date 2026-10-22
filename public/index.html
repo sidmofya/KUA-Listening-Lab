@@ -976,20 +976,20 @@
 
         const CONFIG = {
             // Path to the wide AI render (16:9). null = use the built-in placeholder scene.
-            sceneImage: null,
+            sceneImage: 'assets/scene-wide.jpg',
             // Camera focal points and zoom, in scene units (1600 × 900).
             views: {
                 wide: { x: 800, y: 470, z: 1 },
-                A: { x: 455, y: 590, z: 1.9 },
-                B: { x: 1145, y: 590, z: 1.9 }
+                A: { x: 360, y: 528, z: 1.7 },
+                B: { x: 1240, y: 528, z: 1.7 }
             },
             // Live hardware layered over the render. Re-place these with ?calibrate.
             overlays: {
-                recA: { x: 552, y: 589, r: 58, squash: 0.13 },
-                recB: { x: 1040, y: 589, r: 58, squash: 0.13 },
-                meterL: { x: 746, y: 600, len: 36, face: [700, 556, 92, 46] },
-                meterR: { x: 854, y: 600, len: 36, face: [808, 556, 92, 46] },
-                led: { x: 672, y: 549 }
+                recA: { x: 472, y: 566, r: 86, squash: 0.06 },
+                recB: { x: 1081, y: 566, r: 86, squash: 0.06 },
+                meterL: { x: 760, y: 611, len: 25, face: [730, 581, 60, 28] },
+                meterR: { x: 839, y: 611, len: 25, face: [808, 581, 62, 28] },
+                led: { x: 683, y: 577 }
             }
         };
 
@@ -1349,7 +1349,7 @@
                     <g clip-path="url(#clip-${id})">
                         <g id="${id}">
                             <line x1="${m.x + 1.2}" y1="${m.y}" x2="${m.x + 1.2}" y2="${m.y - m.len}" stroke="#000" stroke-opacity=".18" stroke-width="1.3"/>
-                            <line x1="${m.x}" y1="${m.y}" x2="${m.x}" y2="${m.y - m.len}" stroke="#a5602a" stroke-width="1.3" stroke-linecap="round"/>
+                            <line x1="${m.x}" y1="${m.y}" x2="${m.x}" y2="${m.y - m.len}" stroke="#2e1d12" stroke-width="1.1" stroke-linecap="round"/>
                         </g>
                         <circle cx="${m.x}" cy="${m.y + 1}" r="4" fill="#222"/>
                     </g>`;
