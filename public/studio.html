@@ -1197,7 +1197,10 @@
                             <div class="kicker">${esc(c.id)} · ${live} live · ${songs.length}/${songsPerCollection} songs</div>
                             <h1 style="font-size:34px;margin-top:4px">${esc(c.name)}</h1>
                         </div>
-                        <button class="btn ghost small danger" data-act="delete-collection">Delete</button>
+                        <div class="row">
+                            <button class="btn ghost small" data-act="copy-link" ${live ? '' : 'disabled'} title="Copy the listening-room link for this collection">Copy link</button>
+                            <button class="btn ghost small danger" data-act="delete-collection">Delete</button>
+                        </div>
                     </div>
                     <div class="row" style="align-items:flex-start">
                         <label class="field" style="flex:1 1 200px;margin:0"><span>Name</span><input type="text" data-field="name" value="${esc(c.name)}" maxlength="40"></label>
@@ -1225,6 +1228,7 @@
                                 <div class="row">
                                     <button class="btn ghost small" data-act="cover" ${s.v1 && s.v2 ? '' : 'disabled'} title="Generate a new cover">New cover</button>
                                     <button class="btn ghost small" data-act="cover-gen" ${s.v1 && s.v2 ? '' : 'disabled'} title="Generative art, no AI">Generative</button>
+                                    <button class="btn ghost small" data-act="copy-link" ${s.v1 && s.v2 ? '' : 'disabled'} title="Copy the listening-room link for this song">Copy link</button>
                                 </div>
                                 <div class="row">
                                     <button class="btn ghost small" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
@@ -1302,6 +1306,13 @@
                     const i = order.indexOf(songId), j = i + (btn.dataset.act === 'up' ? -1 : 1);
                     [order[i], order[j]] = [order[j], order[i]];
                     act('', () => moveSong(c, order));
+                    break;
+                }
+                case 'copy-link': {
+                    const url = `${location.origin}/${encodeURIComponent(c.id)}${song ? `/${encodeURIComponent(song.id.slice(c.id.length + 1))}` : ''}`;
+                    navigator.clipboard.writeText(url)
+                        .then(() => toast(`Link copied – ${url.replace(/^https?:\/\//, '')}`))
+                        .catch(() => prompt('Copy this link:', url));
                     break;
                 }
                 case 'delete-song':

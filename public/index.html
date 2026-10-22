@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>AB/noCD – KŮA Listening Lab</title>
+    <meta name="description" content="Two versions of every song. Listen to A and B, then pick the one that should be released.">
+    <meta property="og:title" content="AB/noCD – KŮA Listening Lab">
+    <meta property="og:description" content="Two versions of every song. Listen to A and B, then pick the one that should be released.">
+    <meta property="og:image" content="https://listen.sidmofya.com/assets/scene-wide.jpg">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,700;1,700&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -334,6 +340,41 @@
         .picker-foot .step:disabled {
             opacity: 0.25;
             cursor: default;
+        }
+
+        .share-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--mono);
+            font-size: 10.5px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.8);
+            transition: color 0.2s ease;
+        }
+
+        .share-link:hover {
+            color: var(--copper-lt);
+        }
+
+        .picker-list .share-link {
+            display: flex;
+            width: 100%;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .sent {
+            margin-top: 10px;
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            color: var(--copper-lt);
+        }
+
+        .sent:empty {
+            display: none;
         }
 
         .dots {
@@ -745,6 +786,10 @@
                 width: calc(50% - 18px);
             }
 
+            .picker-foot .share-link span {
+                display: none;
+            }
+
             .panel-left {
                 left: 12px;
             }
@@ -884,6 +929,9 @@
                 <button class="step" id="nextSong" aria-label="Next song">
                     <svg viewBox="0 0 12 12" width="12" height="12"><path d="M10 1v10M2 1.5L8 6l-6 4.5z" fill="none" stroke="#fff" stroke-width="1.1"/></svg>
                 </button>
+                <button class="share-link" id="shareSong" type="button" aria-label="Share this song">
+                    <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M6 1v7M3.2 3.6L6 1l2.8 2.6M2 6.5V11h8V6.5" fill="none" stroke="currentColor" stroke-width="1.1"/></svg><span>Share</span>
+                </button>
                 <div class="dots" id="dots" aria-hidden="true"></div>
             </div>
         </section>
@@ -922,6 +970,7 @@
         <div class="overlay open" id="welcome">
             <form class="card" id="welcomeForm" autocomplete="on">
                 <div class="kicker">KŮA Listening Lab</div>
+                <div class="sent" id="welcomeSent"></div>
                 <h1 style="margin-top:8px">AB/<em>no</em>CD</h1>
                 <p>Every song here comes in two versions. Switch between A and B as often as you like – each one picks up where you left it. When you know which you'd keep, hit <b>Select</b> and vote.</p>
                 <label class="field">
@@ -948,6 +997,13 @@
                 <button class="cta" type="submit" id="voteSubmit" disabled>Submit vote</button>
                 <button class="cta ghost" type="button" id="voteCancel">Keep listening</button>
             </form>
+            <div class="card" id="voteThanks" hidden>
+                <div class="kicker" id="thanksKicker"></div>
+                <h1 style="margin-top:8px;font-size:44px" id="thanksTitle">Thank you.</h1>
+                <p>Know someone with good ears? Send them this song – they'll hear it blind, just like you did.</p>
+                <button class="cta" type="button" id="thanksShare">Share this song</button>
+                <button class="cta ghost" type="button" id="thanksNext">Next song</button>
+            </div>
         </div>
 
         <!-- Collection complete -->
@@ -956,7 +1012,8 @@
                 <div class="kicker">Collection complete</div>
                 <h1 style="margin-top:8px;font-size:44px">Thank you.</h1>
                 <p id="doneText"></p>
-                <button class="cta" type="button" id="doneNext">Next collection</button>
+                <button class="cta" type="button" id="doneShare">Share the collection</button>
+                <button class="cta ghost" type="button" id="doneNext">Next collection</button>
                 <button class="cta ghost" type="button" id="doneStay">Review my votes</button>
             </div>
         </div>
@@ -974,7 +1031,7 @@
 
         const CONFIG = {
             // Path to the wide AI render (16:9). null = use the built-in placeholder scene.
-            sceneImage: 'assets/scene-wide.jpg',
+            sceneImage: '/assets/scene-wide.jpg',
             // Camera focal points and zoom, in scene units (1600 × 900).
             views: {
                 wide: { x: 800, y: 470, z: 1 },
@@ -1756,6 +1813,7 @@
             Object.values(decks).forEach(disposeDeck);
             songIdx = clamp(idx, 0, collection.songs.length - 1);
             song = collection.songs[songIdx];
+            updateAddress();
             live = null;
             view = 'wide';
             loading = true;
@@ -1782,6 +1840,73 @@
             collection = COLLECTIONS[ci];
             const next = collection.songs.findIndex((s) => !store.votes[s.id]);
             selectSong(next === -1 ? 0 : next);
+        }
+
+        // ---------------------------------------------------------------
+        // Links: /<collection> and /<collection>/<song>
+        // ---------------------------------------------------------------
+
+        function songSlug(c, s) {
+            return s.id.startsWith(`${c.id}-`) ? s.id.slice(c.id.length + 1) : s.id;
+        }
+
+        function linkFor(c, s) {
+            const demo = new URLSearchParams(location.search).has('demo') ? '?demo' : '';
+            return `${location.origin}/${encodeURIComponent(c.id)}${s ? `/${encodeURIComponent(songSlug(c, s))}` : ''}${demo}`;
+        }
+
+        // Where the address bar pointed when the page loaded: { ci, si, missing }.
+        function parseRoute() {
+            const [c, s] = location.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+            if (!c || c.endsWith('.html')) return null;
+            const ci = COLLECTIONS.findIndex((x) => x.id === c);
+            if (ci === -1) return { ci: -1, si: -1, missing: true };
+            const si = s ? COLLECTIONS[ci].songs.findIndex((x) => x.id === `${c}-${s}`) : -1;
+            return { ci, si, missing: !!s && si === -1 };
+        }
+
+        // Keep the address bar on the current song so it can be copied and shared.
+        function updateAddress() {
+            if (!/^https?:$/.test(location.protocol)) return;
+            const url = new URL(linkFor(collection, song));
+            if (url.pathname !== location.pathname) history.replaceState(null, '', url.pathname + url.search);
+        }
+
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.cssText = 'position:fixed;opacity:0';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                ta.remove();
+                return ok;
+            }
+        }
+
+        // Share a song or the whole collection. Phones get the native share sheet;
+        // elsewhere the link is copied. The text never reveals anyone's vote.
+        async function share(kind) {
+            if (!collection) return;
+            const s = kind === 'song' ? song : null;
+            const url = linkFor(collection, s);
+            const title = `${s ? s.title : collection.name} – AB/noCD`;
+            const text = s
+                ? `Two versions of “${s.title}” by ${s.artist || 'KŮA'}. Listen to A and B, then pick the one that should be released.`
+                : `${collection.name} by KŮA: two versions of every song. You pick.`;
+            if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+                try {
+                    await navigator.share({ title, text, url });
+                    return;
+                } catch (e) {
+                    if (e.name === 'AbortError') return;
+                }
+            }
+            toast(await copyText(url) ? `Link copied – ${url.replace(/^https?:\/\//, '')}` : url);
         }
 
         function votedCount(c) {
@@ -1824,8 +1949,20 @@
             setTimeout(() => document.querySelector('.choice').focus(), 50);
         }
 
+        let afterVote = null;
+
         function closeVote() {
             $('vote').classList.remove('open');
+            $('voteForm').hidden = false;
+            $('voteThanks').hidden = true;
+        }
+
+        // Leave the thank-you card: on to the next song, the done screen, or back to the room.
+        function continueAfterVote() {
+            const next = afterVote;
+            afterVote = null;
+            closeVote();
+            next?.();
         }
 
         function renderChoice() {
@@ -1853,15 +1990,26 @@
                 switches: store.switches[song.id] || 0,
                 note
             });
-            closeVote();
-            toast(prior ? 'Vote updated.' : `Voted ${pendingChoice}. Thank you.`);
             updateUI();
 
             const next = collection.songs.findIndex((s, i) => i > songIdx && !store.votes[s.id]);
             const wrap = collection.songs.findIndex((s) => !store.votes[s.id]);
-            if (prior) return;
-            if (next !== -1 || wrap !== -1) setTimeout(() => selectSong(next !== -1 ? next : wrap), 700);
-            else setTimeout(showDone, 700);
+            const target = next !== -1 ? next : wrap;
+            if (prior) {
+                afterVote = null;
+                $('thanksNext').textContent = 'Back to the room';
+            } else if (target !== -1) {
+                afterVote = () => selectSong(target);
+                $('thanksNext').textContent = `Next song: ${collection.songs[target].title} →`;
+            } else {
+                afterVote = showDone;
+                $('thanksNext').textContent = 'Finish';
+            }
+            $('thanksKicker').textContent = `${collection.name} · ${song.title}`;
+            $('thanksTitle').textContent = prior ? `Changed to ${pendingChoice}.` : `Voted ${pendingChoice}. Thank you.`;
+            $('voteForm').hidden = true;
+            $('voteThanks').hidden = false;
+            $('thanksShare').focus();
         }
 
         async function sendVote(payload) {
@@ -1926,10 +2074,11 @@
             $('pickerTitle').textContent = song.title;
             const soFar = collection.total > collection.songs.length ? ' · more coming' : '';
             $('pickerSub').textContent = `Song ${songIdx + 1} of ${collection.songs.length}${soFar}${vote ? ` · voted ${vote.choice}` : ''}`;
-            $('pickerList').innerHTML = collection.songs.map((s, i) => {
-                const v = store.votes[s.id];
-                return `<button data-s="${i}" class="${i === songIdx ? 'current' : ''}"><span class="n">${String(i + 1).padStart(2, '0')}</span><span>${esc(s.title)}</span><span class="v">${v ? `✓ ${v.choice}` : ''}</span></button>`;
-            }).join('');
+            $('pickerList').innerHTML = `<button class="share-link" data-share type="button">${$('shareSong').querySelector('svg').outerHTML}Share ${esc(collection.name)}</button>` +
+                collection.songs.map((s, i) => {
+                    const v = store.votes[s.id];
+                    return `<button data-s="${i}" class="${i === songIdx ? 'current' : ''}"><span class="n">${String(i + 1).padStart(2, '0')}</span><span>${esc(s.title)}</span><span class="v">${v ? `✓ ${v.choice}` : ''}</span></button>`;
+                }).join('');
             $('dots').innerHTML = collection.songs.map((s, i) => `<i class="${store.votes[s.id] ? 'voted' : ''} ${i === songIdx ? 'current' : ''}"></i>`).join('');
             $('prevSong').disabled = songIdx === 0;
             $('nextSong').disabled = songIdx === collection.songs.length - 1;
@@ -2173,6 +2322,12 @@
             enter.disabled = false;
             updateUI();
 
+            const route = parseRoute();
+            if (route && route.ci !== -1) {
+                const c = COLLECTIONS[route.ci];
+                $('welcomeSent').textContent = route.si !== -1 ? `You've been sent “${c.songs[route.si].title}”` : `You've been sent ${c.name}`;
+            }
+
             $('listenerName').value = store.name || '';
             $('welcomeForm').addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -2182,8 +2337,15 @@
                 saveStore();
                 audioCtx();
                 $('welcome').classList.remove('open');
-                const ci = COLLECTIONS.findIndex((c) => votedCount(c) < c.songs.length);
-                selectCollection(ci === -1 ? 0 : ci);
+                if (route && route.ci !== -1) {
+                    collection = COLLECTIONS[route.ci];
+                    if (route.si !== -1) selectSong(route.si);
+                    else selectCollection(route.ci);
+                } else {
+                    const ci = COLLECTIONS.findIndex((c) => votedCount(c) < c.songs.length);
+                    selectCollection(ci === -1 ? 0 : ci);
+                }
+                if (route?.missing) toast("That song isn't available any more – here's what's playing now.");
                 flushOutbox();
             });
 
@@ -2210,6 +2372,7 @@
                 }
             });
             $('pickerList').addEventListener('click', (e) => {
+                if (e.target.closest('[data-share]')) return share('collection');
                 const b = e.target.closest('[data-s]');
                 if (b) selectSong(Number(b.dataset.s));
             });
@@ -2225,6 +2388,10 @@
             }));
             $('voteForm').addEventListener('submit', submitVote);
             $('voteCancel').addEventListener('click', closeVote);
+            $('thanksShare').addEventListener('click', () => share('song'));
+            $('thanksNext').addEventListener('click', continueAfterVote);
+            $('shareSong').addEventListener('click', () => share('song'));
+            $('doneShare').addEventListener('click', () => share('collection'));
 
             $('doneNext').addEventListener('click', () => {
                 $('done').classList.remove('open');
@@ -2235,7 +2402,8 @@
             document.addEventListener('keydown', (e) => {
                 if (e.target.closest('input, textarea')) return;
                 if (e.key === 'Escape') {
-                    closeVote();
+                    if (!$('voteThanks').hidden) continueAfterVote();
+                    else closeVote();
                     closeMenus();
                     $('lyricsPanel').classList.remove('expanded');
                     $('lyricsToggle').setAttribute('aria-expanded', 'false');

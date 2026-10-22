@@ -7,6 +7,7 @@ Listeners hear two versions of each song on a two-deck hi-fi and vote for the on
 - **Lyrics** (top left) expand with the chevron. **Song picker** (top right) lists the collection's songs.
 - **Top nav** switches collections.
 - A/B order is randomised per listener and song; the vote records the real version (`v1` = file A, `v2` = file B).
+- **Links:** `/vol03` opens a collection and `/vol03/copper-light` opens a song (after the name screen); the address bar always shows the current song. **Share** buttons sit in the song picker (song and collection), on the thank-you card after each vote, and on the collection-complete card. Phones get the native share sheet; elsewhere the link is copied. The Studio has a **Copy link** button for every live song and collection.
 
 ## Adding songs (Studio)
 
