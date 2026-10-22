@@ -969,8 +969,6 @@
         // Configuration
         // ---------------------------------------------------------------
 
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxijY8EBvHVBqVjDN8_jX_gf5qn25yG8DWe_tfUPFLnxEFszrmhcAjwXKU3cFqJCautKA/exec';
-
         // Seconds a listener must hear of each version before SELECT unlocks.
         const MIN_LISTEN = 15;
 
@@ -1063,6 +1061,8 @@
         }
 
         let store = loadStore();
+        // Anonymous per-browser id, so a changed vote replaces the listener's earlier one.
+        if (!store.listenerId) store.listenerId = (crypto.randomUUID?.() || `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`).replace(/-/g, '');
 
         function saveStore() {
             try {
@@ -1842,18 +1842,15 @@
             store.votes[song.id] = { choice: pendingChoice, version: d.version, note, at: new Date().toISOString() };
             saveStore();
             sendVote({
-                type: 'abvote',
-                timestamp: new Date().toISOString(),
+                listenerId: store.listenerId,
                 listenerName: store.name,
                 collection: collection.id,
                 songId: song.id,
-                songTitle: song.title,
                 choseVersion: d.version,
                 shownAs: pendingChoice,
                 secondsA: Math.round(heard(decks.A)),
                 secondsB: Math.round(heard(decks.B)),
                 switches: store.switches[song.id] || 0,
-                revote: !!prior,
                 note
             });
             closeVote();
@@ -1880,8 +1877,9 @@
         async function flushOutbox() {
             while (store.outbox.length) {
                 try {
-                    // no-cors + text/plain: Apps Script receives it without a CORS preflight.
-                    await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(store.outbox[0]) });
+                    const res = await fetch('/api/vote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(store.outbox[0]) });
+                    if (res.status >= 500) return; // Server trouble – retry on next vote or visit.
+                    // 4xx means the vote can never succeed (e.g. the song was removed), so drop it.
                     store.outbox.shift();
                     saveStore();
                 } catch (e) {

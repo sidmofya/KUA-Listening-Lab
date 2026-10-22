@@ -46,7 +46,7 @@ Local development: `npm install`, put the variables in a `.env` file, then `npm 
 
 ## Votes
 
-Votes post to the Google Apps Script in `GOOGLE_SCRIPT_URL` (in `public/index.html`) with `type: 'abvote'`. Update the script with `docs/apps-script.gs` so they land in an `ABnoCD` tab. Failed posts queue in the browser and retry on the next vote or visit. Demo collections never post.
+Votes are stored on the site itself (Netlify Blobs), one per listener per song; voting again replaces the listener's earlier vote. The Studio's **Results** section shows the A/B split for every live song, with listeners' notes, and **Download CSV** exports every vote. A and B always mean your `_A` and `_B` files, whichever deck a listener heard them on. Votes that fail to send queue in the listener's browser and retry on the next vote or visit. Demo collections never send votes, and deleting a song deletes its votes.
 
 ## The wide-shot render
 

@@ -370,6 +370,60 @@
 
         /* ---------- Collections ---------- */
 
+        .tally {
+            display: grid;
+            grid-template-columns: minmax(120px, 1fr) 3fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 8px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 14px;
+        }
+
+        .split {
+            display: flex;
+            height: 22px;
+            font-family: var(--mono);
+            font-size: 10.5px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .split span {
+            display: flex;
+            align-items: center;
+            padding: 0 6px;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .split .a {
+            background: var(--copper);
+        }
+
+        .split .b {
+            background: rgba(255, 255, 255, 0.82);
+            color: #000;
+            justify-content: flex-end;
+            margin-left: auto;
+        }
+
+        .tally details {
+            grid-column: 1 / -1;
+        }
+
+        .notes {
+            list-style: none;
+            margin-top: 6px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.82);
+        }
+
+        .notes li {
+            padding: 4px 0;
+        }
+
         .songs {
             list-style: none;
             margin-top: 16px;
@@ -579,6 +633,18 @@
                 </div>
             </section>
 
+            <!-- Results -->
+            <section class="card" id="results">
+                <div class="card-head">
+                    <h2>Results</h2>
+                    <div class="row">
+                        <button class="btn ghost small" type="button" id="refreshVotes">Refresh</button>
+                        <button class="btn small" type="button" id="downloadCsv">Download CSV</button>
+                    </div>
+                </div>
+                <div id="resultsBody"><p class="mono">Loading votes…</p></div>
+            </section>
+
             <!-- Collections -->
             <div id="collections"></div>
         </div>
@@ -706,6 +772,7 @@
             $('signOut').hidden = false;
             renderCollections();
             renderBatch();
+            loadVotes().catch(() => {});
         }
 
         $('login').addEventListener('submit', async (e) => {
@@ -1046,9 +1113,72 @@
             }
         }));
 
+        // ---------------------------------------------------------------
+        // Results
+        // ---------------------------------------------------------------
+
+        let votes = [];
+
+        async function loadVotes() {
+            votes = (await api('/api/admin/votes')).votes;
+            renderResults();
+        }
+
+        function renderResults() {
+            const bySong = new Map();
+            for (const v of votes) {
+                if (!bySong.has(v.songId)) bySong.set(v.songId, []);
+                bySong.get(v.songId).push(v);
+            }
+            const sections = catalog.collections.map((c) => {
+                const rows = c.order.map((id) => c.songs[id]).filter((s) => s && s.v1 && s.v2).map((s) => {
+                    const list = bySong.get(s.id) || [];
+                    const a = list.filter((v) => v.choseVersion === 'v1').length;
+                    const b = list.length - a;
+                    const pa = list.length ? Math.round((a / list.length) * 100) : 0;
+                    const notes = list.filter((v) => v.note).sort((x, y) => y.votedAt.localeCompare(x.votedAt));
+                    return `<div class="tally">
+                        <div>${esc(s.title)}</div>
+                        <div class="split">${list.length
+                            ? `${a ? `<span class="a" style="width:${pa}%">A ${a} · ${pa}%</span>` : ''}${b ? `<span class="b" style="width:${100 - pa}%">B ${b} · ${100 - pa}%</span>` : ''}`
+                            : '<span class="mono">no votes yet</span>'}</div>
+                        <div class="mono">${list.length} vote${list.length === 1 ? '' : 's'}</div>
+                        ${notes.length ? `<details><summary>${notes.length} note${notes.length === 1 ? '' : 's'}</summary><ul class="notes">${notes.map((v) =>
+                            `<li><span class="chip ${v.choseVersion === 'v1' ? 'copper' : ''}">${v.choseVersion === 'v1' ? 'A' : 'B'}</span> ${esc(v.note)} <span class="mono">– ${esc(v.listenerName || 'anonymous')}</span></li>`
+                        ).join('')}</ul></details>` : ''}
+                    </div>`;
+                });
+                return rows.length ? `<div class="group"><h2>${esc(c.name)}</h2>${rows.join('')}</div>` : '';
+            }).join('');
+            $('resultsBody').innerHTML = sections
+                ? `<p class="mono">${votes.length} vote${votes.length === 1 ? '' : 's'} in total · A and B are your _A and _B files, whichever deck listeners heard them on.</p>${sections}`
+                : '<p class="mono">Results appear here once songs are live.</p>';
+            $('downloadCsv').disabled = !votes.length;
+        }
+
+        function downloadCsv() {
+            const songTitle = (id) => catalog.collections.flatMap((c) => Object.values(c.songs)).find((s) => s.id === id)?.title || id;
+            const header = ['votedAt', 'collection', 'song', 'listener', 'picked', 'shownOnDeck', 'secondsOnDeckA', 'secondsOnDeckB', 'switches', 'changedVote', 'note'];
+            const rows = votes.map((v) => [
+                v.votedAt, v.collection, songTitle(v.songId), v.listenerName, v.choseVersion === 'v1' ? 'A' : 'B',
+                v.shownAs, v.secondsA, v.secondsB, v.switches, v.changed ? 'yes' : 'no', v.note
+            ]);
+            const cell = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
+            const csv = [header, ...rows].map((r) => r.map(cell).join(',')).join('\r\n');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
+            a.download = `abnocd-votes-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
+
+        $('refreshVotes').addEventListener('click', () => loadVotes().catch((err) => toast(err.message)));
+        $('downloadCsv').addEventListener('click', downloadCsv);
+
         async function refresh() {
             catalog = await api('/api/admin/catalog');
             renderCollections();
+            renderResults();
         }
 
         // ---------------------------------------------------------------

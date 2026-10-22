@@ -23,6 +23,14 @@ export default async (req) => {
         return json({ ...catalog, coverAI: !!process.env.GEMINI_API_KEY, songsPerCollection: SONGS_PER_COLLECTION });
     }
 
+    // Every vote, for the Results view and CSV export.
+    if (route === 'votes' && method === 'GET') {
+        const votes = store('votes');
+        const { blobs } = await votes.list();
+        const all = await Promise.all(blobs.map((b) => votes.get(b.key, { type: 'json' })));
+        return json({ votes: all.filter(Boolean) });
+    }
+
     // Create or update a collection: { id, name?, theme?, artist? }
     if (route === 'collection' && method === 'POST') {
         const id = slug(body.id);
@@ -107,6 +115,9 @@ export default async (req) => {
 async function removeSongFiles(song) {
     const jobs = [song.v1, song.v2].filter(Boolean).map((v) => deleteAudio(v.key));
     if (song.cover) jobs.push(store('covers').delete(song.cover.key));
+    const votes = store('votes');
+    const { blobs } = await votes.list({ prefix: `${song.id}/` });
+    jobs.push(...blobs.map((b) => votes.delete(b.key)));
     await Promise.all(jobs);
 }
 
