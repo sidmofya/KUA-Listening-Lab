@@ -993,22 +993,11 @@
             }
         };
 
-        // Each collection holds 10 songs, each with two versions (v1, v2).
-        // Listeners hear them in a random A/B order, fixed per listener.
-        // demo: true collections synthesise their audio in the browser and never post votes.
-        //
-        // Real collection template:
-        // {
-        //     id: 'vol03', name: 'Vol. 03', songs: [
-        //         { id: 'vol03-01', title: 'Song name', artist: 'KŮA', cover: 'assets/covers/01.jpg',
-        //           lyrics: `Line one\nLine two`,
-        //           v1: 'https://cdn.example.com/vol03/01-a.mp3',
-        //           v2: 'https://cdn.example.com/vol03/01-b.mp3' },
-        //         ...
-        //     ]
-        // }
-        // Audio on a CORS-enabled host (Netlify, Cloudflare R2, same origin) drives the VU meters
-        // from the real signal; Google Drive links still play, with simulated meters.
+        // Collections come from /api/catalog, which the Studio (/studio) fills.
+        // Each holds up to 10 songs with two versions (v1 = file A, v2 = file B);
+        // listeners hear them in a random A/B order, fixed per listener.
+        // The demo collections below play when the catalog is empty, unreachable or ?demo is set;
+        // they synthesise their audio in the browser and never post votes.
         const DEMO_TITLES = [
             'Copper Light', 'Night Market', 'Slow Burn', 'Lusaka Rain', 'Blue Hour',
             'Second Wind', 'Paper Moon', 'Low Tide', 'Glasshouse', 'Northbound',
@@ -1038,10 +1027,24 @@
             return { id, name, demo: true, songs };
         }
 
-        const COLLECTIONS = [
+        const DEMO_COLLECTIONS = [
             demoCollection('vol01', 'Vol. 01', 0),
             demoCollection('vol02', 'Vol. 02', 10)
         ];
+
+        let COLLECTIONS = DEMO_COLLECTIONS;
+
+        async function loadCatalog() {
+            if (new URLSearchParams(location.search).has('demo')) return;
+            try {
+                const res = await fetch('/api/catalog', { cache: 'no-cache' });
+                if (!res.ok) return;
+                const { collections } = await res.json();
+                if (collections?.length) COLLECTIONS = collections;
+            } catch (e) {
+                // No API (e.g. a plain static server) – stay on the demo collections.
+            }
+        }
 
         // ---------------------------------------------------------------
         // Persistence
@@ -1604,17 +1607,20 @@
             if (d.src) {
                 try { d.src.disconnect(); } catch (e) { /* already disconnected */ }
             }
-            Object.assign(d, { el: null, version: null, analysable: false, src: null, gain: null, an: null, buf: null, vol: 1, volTarget: 1, pauseWhenSilent: false });
+            Object.assign(d, { el: null, version: null, posKey: null, analysable: false, src: null, gain: null, an: null, buf: null, vol: 1, volTarget: 1, pauseWhenSilent: false });
         }
 
-        function attachDeck(d, url, version, songId) {
+        function attachDeck(d, url, version, songId, rev) {
             disposeDeck(d);
             const el = new Audio();
             el.preload = 'auto';
             d.el = el;
             d.version = version;
+            // Replacing a version in the Studio changes its rev, so stale positions are ignored.
+            d.posKey = rev ? `${version}@${rev}` : version;
             const sameOrigin = url.startsWith('blob:') || new URL(url, location.href).origin === location.origin;
             let retried = false;
+            d.analysable = sameOrigin;
             // Ask for CORS so the analyser can read the signal; fall back to plain playback if refused.
             if (!sameOrigin) el.crossOrigin = 'anonymous';
             el.addEventListener('error', () => {
@@ -1631,7 +1637,8 @@
             el.addEventListener('loadedmetadata', () => {
                 if (d.el !== el) return;
                 d.analysable = sameOrigin || !retried;
-                const p = store.pos[songId]?.[version];
+                if (!el.paused) wire(d);
+                const p = store.pos[songId]?.[d.posKey];
                 if (p && p < el.duration - 1) el.currentTime = p;
                 renderTimes();
             });
@@ -1715,7 +1722,7 @@
             if (!song) return;
             const pos = store.pos[song.id] || (store.pos[song.id] = {});
             for (const d of Object.values(decks)) {
-                if (d.el && d.version && isFinite(d.el.currentTime)) pos[d.version] = d.el.currentTime;
+                if (d.el && d.posKey && isFinite(d.el.currentTime)) pos[d.posKey] = d.el.currentTime;
             }
             saveStore();
         }
@@ -1761,8 +1768,8 @@
             try {
                 const urls = await Promise.all(['A', 'B'].map((k) => resolveUrl(song[versions[k]])));
                 if (token !== loadToken) return;
-                attachDeck(decks.A, urls[0], versions.A, song.id);
-                attachDeck(decks.B, urls[1], versions.B, song.id);
+                attachDeck(decks.A, urls[0], versions.A, song.id, song.revs?.[versions.A]);
+                attachDeck(decks.B, urls[1], versions.B, song.id, song.revs?.[versions.B]);
             } catch (e) {
                 if (token === loadToken) toast('Could not load this song.');
             }
@@ -1885,7 +1892,8 @@
 
         function showDone() {
             const nextIdx = COLLECTIONS.findIndex((c) => votedCount(c) < c.songs.length);
-            $('doneText').textContent = `You've voted on all ${collection.songs.length} songs in ${collection.name}. Your picks decide which versions get released.`;
+            const more = collection.total > collection.songs.length ? ` More songs are on the way – check back soon.` : '';
+            $('doneText').textContent = `You've voted on all ${collection.songs.length} songs in ${collection.name}. Your picks decide which versions get released.${more}`;
             $('doneNext').hidden = nextIdx === -1;
             $('doneNext').dataset.c = nextIdx;
             $('done').classList.add('open');
@@ -1918,7 +1926,8 @@
             $('pickerCover').setAttribute('style', cover);
             $('pickerCover').textContent = song.cover ? '' : num;
             $('pickerTitle').textContent = song.title;
-            $('pickerSub').textContent = `Song ${songIdx + 1} of ${collection.songs.length}${vote ? ` · voted ${vote.choice}` : ''}`;
+            const soFar = collection.total > collection.songs.length ? ' · more coming' : '';
+            $('pickerSub').textContent = `Song ${songIdx + 1} of ${collection.songs.length}${soFar}${vote ? ` · voted ${vote.choice}` : ''}`;
             $('pickerList').innerHTML = collection.songs.map((s, i) => {
                 const v = store.votes[s.id];
                 return `<button data-s="${i}" class="${i === songIdx ? 'current' : ''}"><span class="n">${String(i + 1).padStart(2, '0')}</span><span>${esc(s.title)}</span><span class="v">${v ? `✓ ${v.choice}` : ''}</span></button>`;
@@ -2152,13 +2161,19 @@
         // Wiring
         // ---------------------------------------------------------------
 
-        function init() {
+        async function init() {
             buildBackdrop();
             buildHardware();
             applyCamera(false);
             initCrossfader();
             updateUI();
             requestAnimationFrame(frame);
+
+            const enter = document.querySelector('#welcomeForm .cta');
+            enter.disabled = true;
+            await loadCatalog();
+            enter.disabled = false;
+            updateUI();
 
             $('listenerName').value = store.name || '';
             $('welcomeForm').addEventListener('submit', (e) => {
