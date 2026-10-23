@@ -676,9 +676,9 @@
 
     <script>
         const CHUNK = 4 * 1024 * 1024; // must match netlify/lib/common.mjs
-        const AUDIO_EXT = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|aif|aiff)$/i;
+        const AUDIO_EXT = /\.(mp3|m4a|mp4|aac|wav|flac|ogg|oga|opus|webm|aif|aiff)$/i;
         const TEXT_EXT = /\.(txt|md)$/i;
-        const MIME = { mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', flac: 'audio/flac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', aif: 'audio/aiff', aiff: 'audio/aiff' };
+        const MIME = { mp3: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', webm: 'audio/webm', aac: 'audio/aac', wav: 'audio/wav', flac: 'audio/flac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', aif: 'audio/aiff', aiff: 'audio/aiff' };
         const THEME_EXAMPLES = [
             '1970s Zambian album sleeves, copper and indigo, risograph texture',
             'Night-time Lusaka street photography, sodium light, long exposure',
@@ -736,7 +736,7 @@
                 showLogin();
                 throw new Error('Signed out – sign in again');
             }
-            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+            if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { data });
             return data;
         }
 
@@ -1034,21 +1034,29 @@
             const parts = Math.max(1, Math.ceil(file.size / CHUNK));
             const rev = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
             const ext = (file.name.split('.').pop() || '').toLowerCase();
-            let result;
-            for (let i = 0; i < parts; i++) {
+            const send = async (i) => {
                 const qs = new URLSearchParams({
                     collection: collectionId, song: songId, version, rev, part: i, parts, size: file.size,
                     type: file.type || MIME[ext] || 'audio/mpeg', name: file.name
                 });
                 for (let attempt = 1; ; attempt++) {
                     try {
-                        result = await api(`/api/upload?${qs}`, { method: 'POST', raw: file.slice(i * CHUNK, (i + 1) * CHUNK) });
-                        break;
+                        return await api(`/api/upload?${qs}`, { method: 'POST', raw: file.slice(i * CHUNK, (i + 1) * CHUNK) });
                     } catch (err) {
+                        // The last part reports any earlier part that never landed; re-send it, then retry.
+                        const missing = err.data?.missingPart;
+                        if (Number.isInteger(missing) && missing !== i && attempt < 3) {
+                            await send(missing);
+                            continue;
+                        }
                         if (attempt >= 3 || err.message.startsWith('Signed out')) throw err;
                         await new Promise((r) => setTimeout(r, 1000 * attempt));
                     }
                 }
+            };
+            let result;
+            for (let i = 0; i < parts; i++) {
+                result = await send(i);
                 onProgress((i + 1) / parts);
             }
             return result.song;
@@ -1223,6 +1231,7 @@
                                     <span class="chip ${s.v1 && s.v2 ? 'copper' : ''}">${s.v1 && s.v2 ? 'LIVE' : 'WAITING'}</span>
                                     ${s.cover ? `<span class="chip">${s.cover.source === 'generative' ? 'GENERATIVE COVER' : 'AI COVER'}</span>` : ''}
                                 </div>
+                                ${s.v1 && s.v2 ? '' : `<p class="note warn" style="margin:6px 0 0 6px">Missing version ${s.v1 ? 'B' : 'A'} – not playable yet. Upload <code>${esc(c.id)}_${esc(s.title)}_${s.v1 ? 'B' : 'A'}.mp3</code> (any audio format) to make it live.</p>`}
                             </div>
                             <div class="song-actions">
                                 <div class="row">

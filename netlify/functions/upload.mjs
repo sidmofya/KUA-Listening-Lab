@@ -37,8 +37,10 @@ export default async (req) => {
 
     if (part < parts - 1) return json({ ok: true, part });
 
-    const { blobs } = await audio.list({ prefix: `${key}/` });
-    if (blobs.length !== parts) return json({ error: `Only ${blobs.length} of ${parts} parts arrived – upload again` }, 409);
+    // Check each part directly: per-key reads are strongly consistent, whereas list() can lag behind writes.
+    const present = await Promise.all(Array.from({ length: parts }, (_, i) => audio.getMetadata(`${key}/${i}`)));
+    const missing = present.findIndex((m) => !m);
+    if (missing !== -1) return json({ error: `Part ${missing} of ${parts} is missing – upload again`, missingPart: missing }, 409);
     await audio.setJSON(`${key}/meta`, { size, type, parts });
 
     const previous = song[version];

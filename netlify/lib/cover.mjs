@@ -25,7 +25,7 @@ export function coverPrompt({ theme, title, lyrics }) {
 export async function aiCover(prompt) {
     const key = process.env.GEMINI_API_KEY;
     if (!key) throw new Error('GEMINI_API_KEY not set');
-    const models = (process.env.COVER_MODELS || 'imagen-4.0-generate-001,gemini-2.5-flash-image').split(',').map((m) => m.trim()).filter(Boolean);
+    const models = (process.env.COVER_MODELS || 'gemini-3.1-flash-image,gemini-2.5-flash-image').split(',').map((m) => m.trim()).filter(Boolean);
     // Netlify stops synchronous functions after ~10 s; leave room to fall back.
     const deadline = Date.now() + Number(process.env.COVER_TIMEOUT_MS || 8500);
     const errors = [];
@@ -52,6 +52,10 @@ export async function aiCover(prompt) {
             return { bytes: Buffer.from(b64, 'base64'), type: img.mimeType || 'image/png', source: model };
         } catch (e) {
             errors.push(`${model}: ${e.name === 'TimeoutError' ? 'timed out' : e.message}`);
+            // Image models have no free tier: a quota error means billing is off, so every model will fail the same way.
+            if (/quota|billing/i.test(e.message)) {
+                throw new Error('Google image generation needs billing enabled on the API key\'s project (the free tier allows 0 images)');
+            }
         }
     }
     throw new Error(errors.join(' · ') || 'AI cover timed out');
