@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>AB/noCD Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,700;1,700&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --copper: #b87333;
+            --copper-lt: #d4a574;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-strong: rgba(22, 20, 18, 0.92);
+            --line: rgba(255, 255, 255, 0.78);
+            --line-soft: rgba(255, 255, 255, 0.16);
+            --muted: rgba(255, 255, 255, 0.6);
+            --ok: #8fd19e;
+            --warn: #f2c14e;
+            --bad: #f08a7a;
+            --ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --cond: 'Archivo Narrow', 'Arial Narrow', sans-serif;
+            --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: var(--ui);
+            color: #fff;
+            background: radial-gradient(ellipse at 20% 0%, #3a3633 0%, transparent 55%),
+                        radial-gradient(ellipse at 90% 10%, #3b1714 0%, transparent 45%),
+                        #1b1a18;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        button, input, textarea {
+            font: inherit;
+            color: inherit;
+        }
+
+        button {
+            background: none;
+            border: 0;
+            cursor: pointer;
+        }
+
+        button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible {
+            outline: 2px solid var(--copper-lt);
+            outline-offset: 2px;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        .nav {
+            position: sticky;
+            top: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            height: 40px;
+            padding: 0 12px;
+            background: #fff;
+            color: #000;
+            z-index: 10;
+        }
+
+        .wordmark {
+            font-family: var(--cond);
+            font-weight: 700;
+            font-size: 19px;
+            white-space: nowrap;
+        }
+
+        .wordmark em {
+            font-style: italic;
+            font-weight: 700;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 18px;
+            font-family: var(--cond);
+            font-weight: 700;
+            font-size: 15px;
+            text-transform: uppercase;
+        }
+
+        .nav-links a, .nav-links button {
+            color: #000;
+            text-decoration: none;
+            text-transform: uppercase;
+        }
+
+        main {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 28px 16px 80px;
+        }
+
+        .card {
+            background: var(--glass);
+            border: 1px solid var(--line);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        h1 {
+            font-family: var(--cond);
+            font-size: 44px;
+            line-height: 1;
+        }
+
+        h2 {
+            font-size: 15px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .kicker, .mono {
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }
+
+        p {
+            font-size: 14px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.82);
+        }
+
+        code {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--copper-lt);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 16px;
+            background: #fff;
+            color: #000;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            transition: background 0.2s ease, opacity 0.2s ease;
+        }
+
+        .btn:hover {
+            background: var(--copper-lt);
+        }
+
+        .btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            background: #fff;
+        }
+
+        .btn.ghost {
+            background: transparent;
+            color: #fff;
+            border: 1px solid var(--line-soft);
+        }
+
+        .btn.ghost:hover {
+            border-color: var(--copper-lt);
+        }
+
+        .btn.small {
+            padding: 6px 10px;
+            font-size: 11px;
+        }
+
+        .btn.danger:hover {
+            border-color: var(--bad);
+            color: var(--bad);
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        select {
+            padding: 6px 8px;
+            font: inherit;
+            font-size: 12px;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid var(--line-soft);
+        }
+
+        select option {
+            color: #000;
+        }
+
+        input[type="text"], input[type="password"], textarea {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid var(--line-soft);
+        }
+
+        textarea {
+            min-height: 90px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        label.field {
+            display: block;
+            margin-top: 14px;
+        }
+
+        label.field > span {
+            display: block;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        /* ---------- Login ---------- */
+
+        .login {
+            max-width: 380px;
+            margin: 12vh auto 0;
+        }
+
+        /* ---------- Drop zone ---------- */
+
+        .drop {
+            display: grid;
+            place-items: center;
+            gap: 12px;
+            min-height: 170px;
+            padding: 24px;
+            text-align: center;
+            border: 1px dashed var(--line);
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .drop.over {
+            background: rgba(184, 115, 51, 0.18);
+            border-color: var(--copper-lt);
+        }
+
+        .drop strong {
+            font-family: var(--cond);
+            font-size: 26px;
+        }
+
+        /* ---------- Preview ---------- */
+
+        .group {
+            border-top: 1px solid var(--line-soft);
+            padding-top: 12px;
+            margin-top: 12px;
+        }
+
+        .group-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .item {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6px 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .item-title {
+            font-weight: 500;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .chip {
+            font-family: var(--mono);
+            font-size: 10.5px;
+            padding: 2px 7px;
+            border: 1px solid var(--line-soft);
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .chip.on {
+            border-color: rgba(143, 209, 158, 0.6);
+            color: var(--ok);
+        }
+
+        .chip.copper {
+            border-color: var(--copper-lt);
+            color: var(--copper-lt);
+        }
+
+        .note {
+            grid-column: 1 / -1;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .note.warn {
+            color: var(--warn);
+        }
+
+        .note.bad {
+            color: var(--bad);
+        }
+
+        .note.ok {
+            color: var(--ok);
+        }
+
+        .bar {
+            grid-column: 1 / -1;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .bar i {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: var(--copper-lt);
+            transition: width 0.2s ease;
+        }
+
+        details {
+            grid-column: 1 / -1;
+        }
+
+        summary {
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--muted);
+            width: max-content;
+        }
+
+        details textarea {
+            margin-top: 8px;
+        }
+
+        .bad-files {
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--bad);
+            line-height: 1.6;
+        }
+
+        /* ---------- Collections ---------- */
+
+        .tally {
+            display: grid;
+            grid-template-columns: minmax(120px, 1fr) 3fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 8px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 14px;
+        }
+
+        .split {
+            display: flex;
+            height: 22px;
+            font-family: var(--mono);
+            font-size: 10.5px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .split span {
+            display: flex;
+            align-items: center;
+            padding: 0 6px;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .split .a {
+            background: var(--copper);
+        }
+
+        .split .b {
+            background: rgba(255, 255, 255, 0.82);
+            color: #000;
+            justify-content: flex-end;
+            margin-left: auto;
+        }
+
+        .tally details {
+            grid-column: 1 / -1;
+        }
+
+        .notes {
+            list-style: none;
+            margin-top: 6px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.82);
+        }
+
+        .notes li {
+            padding: 4px 0;
+        }
+
+        .songs {
+            list-style: none;
+            margin-top: 16px;
+        }
+
+        .song {
+            display: grid;
+            grid-template-columns: 22px 64px 1fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 10px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            background: transparent;
+            transition: background 0.15s ease;
+        }
+
+        .song.dragging {
+            opacity: 0.4;
+        }
+
+        .song.drop-target {
+            background: rgba(184, 115, 51, 0.15);
+        }
+
+        .handle {
+            cursor: grab;
+            color: var(--muted);
+            font-size: 16px;
+            text-align: center;
+            user-select: none;
+        }
+
+        .thumb {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            background: rgba(255, 255, 255, 0.06) center / cover;
+            border: 1px solid var(--line-soft);
+        }
+
+        .thumb.busy::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='%23d4a574' stroke-width='2' stroke-dasharray='40 20'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='1s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E") center / 26px no-repeat;
+        }
+
+        .song-main {
+            min-width: 0;
+        }
+
+        .song-main input {
+            padding: 4px 6px;
+            background: transparent;
+            border-color: transparent;
+            font-weight: 500;
+            font-size: 15px;
+        }
+
+        .song-main input:hover, .song-main input:focus {
+            border-color: var(--line-soft);
+        }
+
+        .song-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: flex-end;
+        }
+
+        .song details {
+            grid-column: 3 / -1;
+        }
+
+        /* ---------- Modal & toast ---------- */
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 16px;
+            background: rgba(10, 8, 6, 0.6);
+            -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
+            z-index: 20;
+        }
+
+        .modal .card {
+            width: min(520px, 100%);
+            background: var(--glass-strong);
+            margin: 0;
+        }
+
+        .examples {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .examples button {
+            font-size: 11.5px;
+            padding: 5px 9px;
+            border: 1px solid var(--line-soft);
+            color: var(--muted);
+            text-align: left;
+        }
+
+        .examples button:hover {
+            border-color: var(--copper-lt);
+            color: #fff;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translate(-50%, 8px);
+            max-width: calc(100% - 32px);
+            padding: 10px 16px;
+            font-size: 13px;
+            background: var(--glass-strong);
+            border: 1px solid var(--line);
+            z-index: 30;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        @media (max-width: 640px) {
+            .song {
+                grid-template-columns: 18px 52px 1fr;
+            }
+
+            .thumb {
+                width: 52px;
+                height: 52px;
+            }
+
+            .song-actions {
+                grid-column: 2 / -1;
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: center;
+            }
+
+            .song details {
+                grid-column: 2 / -1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="wordmark">AB/noCD <em>Studio</em></div>
+        <div class="nav-links">
+            <a href="/" target="_blank" rel="noopener">Listening room</a>
+            <button id="signOut" hidden>Sign out</button>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Login -->
+        <form class="card login" id="login" hidden>
+            <div class="kicker">KŮA Listening Lab</div>
+            <h1 style="margin-top:6px">Studio</h1>
+            <label class="field">
+                <span>Password</span>
+                <input type="password" id="password" autocomplete="current-password" required>
+            </label>
+            <button class="btn" style="width:100%;margin-top:16px" type="submit">Sign in</button>
+            <p class="note bad" id="loginError" style="margin-top:10px"></p>
+        </form>
+
+        <div id="app" hidden>
+            <!-- Drop zone -->
+            <section class="card">
+                <div class="card-head">
+                    <h2>Add songs</h2>
+                    <span class="mono" id="aiStatus"></span>
+                </div>
+                <div class="drop" id="drop">
+                    <strong>Drop a collection folder or song files</strong>
+                    <p>Name files <code>[collection]_[track name]_A.mp3</code>, <code>…_B.mp3</code> and, optionally, an About text: <code>…_lyrics.txt</code>, <code>…_story.txt</code>, <code>…_versions.txt</code> or <code>…_notes.txt</code>.<br>
+                        Example: <code>vol03_Copper Light_A.wav</code></p>
+                    <div class="row" style="justify-content:center">
+                        <button class="btn ghost small" type="button" id="pickFiles">Choose files</button>
+                        <button class="btn ghost small" type="button" id="pickFolder">Choose folder</button>
+                    </div>
+                    <input type="file" id="fileInput" multiple hidden accept="audio/*,.txt,.md,.wav,.aif,.aiff,.flac">
+                    <input type="file" id="folderInput" webkitdirectory multiple hidden>
+                </div>
+
+                <div id="preview" hidden>
+                    <div id="groups"></div>
+                    <div class="bad-files" id="badFiles"></div>
+                    <div class="row" style="margin-top:16px;justify-content:flex-end">
+                        <button class="btn ghost small" type="button" id="clearBatch">Clear</button>
+                        <button class="btn" type="button" id="uploadBatch">Upload</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results -->
+            <section class="card" id="results">
+                <div class="card-head">
+                    <h2>Results</h2>
+                    <div class="row">
+                        <button class="btn ghost small" type="button" id="refreshVotes">Refresh</button>
+                        <button class="btn small" type="button" id="downloadCsv">Download CSV</button>
+                    </div>
+                </div>
+                <div id="resultsBody"><p class="mono">Loading votes…</p></div>
+            </section>
+
+            <!-- Collections -->
+            <div id="collections"></div>
+        </div>
+    </main>
+
+    <!-- Theme prompt -->
+    <div class="modal" id="themeModal" hidden>
+        <form class="card" id="themeForm">
+            <div class="kicker" id="themeKicker">New collection</div>
+            <h1 style="margin-top:6px;font-size:34px" id="themeTitle">Set the art theme</h1>
+            <p style="margin-top:8px">Every cover in this collection is generated from this theme, plus each song's title and lyrics. Describe a look: era, medium, palette, texture.</p>
+            <label class="field">
+                <span>Collection name (shown to listeners)</span>
+                <input type="text" id="themeName" required maxlength="40">
+            </label>
+            <label class="field">
+                <span>Art theme</span>
+                <textarea id="themeText" required maxlength="500" placeholder="e.g. 1970s Zambian album sleeves, copper and indigo, risograph texture"></textarea>
+            </label>
+            <div class="examples" id="themeExamples"></div>
+            <div class="row" style="margin-top:18px;justify-content:flex-end">
+                <button class="btn ghost small" type="button" id="themeCancel">Skip this collection</button>
+                <button class="btn" type="submit">Save theme</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        const CHUNK = 4 * 1024 * 1024; // must match netlify/lib/common.mjs
+        const AUDIO_EXT = /\.(mp3|m4a|mp4|aac|wav|flac|ogg|oga|opus|webm|aif|aiff)$/i;
+        const TEXT_EXT = /\.(txt|md)$/i;
+        const MIME = { mp3: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', webm: 'audio/webm', aac: 'audio/aac', wav: 'audio/wav', flac: 'audio/flac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', aif: 'audio/aiff', aiff: 'audio/aiff' };
+        const THEME_EXAMPLES = [
+            '1970s Zambian album sleeves, copper and indigo, risograph texture',
+            'Night-time Lusaka street photography, sodium light, long exposure',
+            'Bauhaus geometric shapes, primary colours, paper grain',
+            'Dreamy pastel watercolour landscapes, soft haze',
+            'Hand-carved woodblock prints, black ink on cream paper'
+        ];
+
+        const $ = (id) => document.getElementById(id);
+        // What a song's "About this song" text is. Version notes stay hidden from listeners until they vote.
+        const ABOUT_KINDS = { lyrics: 'Lyrics', story: 'Story', versions: 'How the versions differ', notes: 'Notes' };
+        const aboutSelect = (value) => `<select data-about-kind aria-label="Type of About text">${Object.entries(ABOUT_KINDS)
+            .map(([k, label]) => `<option value="${k}" ${k === (value || 'lyrics') ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
+        let catalog = { collections: [] };
+        let songsPerCollection = 10;
+        let batch = new Map(); // collectionId → { id, folders:Set, songs: Map }
+        let badFiles = [];
+        let uploading = false;
+
+        // ---------------------------------------------------------------
+        // Helpers
+        // ---------------------------------------------------------------
+
+        function esc(s) {
+            return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function slug(s) {
+            return String(s ?? '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        }
+
+        function prettyName(id) {
+            const m = id.match(/^vol(?:ume)?-?(\d+)$/);
+            if (m) return `Vol. ${m[1].padStart(2, '0')}`;
+            return id.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        }
+
+        function mb(bytes) {
+            return `${(bytes / 1048576).toFixed(1)} MB`;
+        }
+
+        let toastTimer = 0;
+        function toast(msg) {
+            $('toast').textContent = msg;
+            $('toast').classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => $('toast').classList.remove('show'), 4000);
+        }
+
+        async function api(path, { method = 'GET', body, raw } = {}) {
+            const res = await fetch(path, {
+                method,
+                credentials: 'same-origin',
+                headers: raw ? { 'content-type': 'application/octet-stream' } : body ? { 'content-type': 'application/json' } : {},
+                body: raw ?? (body ? JSON.stringify(body) : undefined)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 401 && !path.endsWith('/login')) {
+                showLogin();
+                throw new Error('Signed out – sign in again');
+            }
+            if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { data });
+            return data;
+        }
+
+        // Every write goes through one queue so catalog updates never overlap.
+        let queue = Promise.resolve();
+        function serial(fn) {
+            const run = queue.then(fn);
+            queue = run.catch(() => {});
+            return run;
+        }
+
+        const findCollection = (id) => catalog.collections.find((c) => c.id === id);
+        const findSong = (collectionId, title) => findCollection(collectionId)?.songs[`${collectionId}-${slug(title)}`];
+
+        // ---------------------------------------------------------------
+        // Session
+        // ---------------------------------------------------------------
+
+        function showLogin() {
+            $('login').hidden = false;
+            $('app').hidden = true;
+            $('signOut').hidden = true;
+            $('password').focus();
+        }
+
+        async function loadCatalog() {
+            const data = await api('/api/admin/catalog');
+            catalog = data;
+            songsPerCollection = data.songsPerCollection || 10;
+            $('aiStatus').textContent = data.coverAI ? 'AI COVERS ON' : 'AI COVERS OFF · GENERATIVE ONLY';
+            $('login').hidden = true;
+            $('app').hidden = false;
+            $('signOut').hidden = false;
+            renderCollections();
+            renderBatch();
+            loadVotes().catch(() => {});
+        }
+
+        $('login').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            $('loginError').textContent = '';
+            try {
+                await api('/api/admin/login', { method: 'POST', body: { password: $('password').value } });
+                $('password').value = '';
+                await loadCatalog();
+            } catch (err) {
+                $('loginError').textContent = err.message;
+            }
+        });
+
+        $('signOut').addEventListener('click', async () => {
+            await api('/api/admin/logout', { method: 'POST' }).catch(() => {});
+            showLogin();
+        });
+
+        // ---------------------------------------------------------------
+        // Reading dropped files and folders
+        // ---------------------------------------------------------------
+
+        function readEntry(entry, folder) {
+            return new Promise((resolve) => {
+                if (entry.isFile) {
+                    entry.file((file) => resolve([{ file, folder }]), () => resolve([]));
+                } else if (entry.isDirectory) {
+                    const reader = entry.createReader();
+                    const all = [];
+                    const next = () => reader.readEntries(async (entries) => {
+                        if (!entries.length) {
+                            const nested = await Promise.all(all.map((en) => readEntry(en, folder || entry.name)));
+                            resolve(nested.flat());
+                        } else {
+                            all.push(...entries);
+                            next();
+                        }
+                    }, () => resolve([]));
+                    next();
+                } else {
+                    resolve([]);
+                }
+            });
+        }
+
+        function parseFile(file) {
+            const dot = file.name.lastIndexOf('.');
+            const base = dot > 0 ? file.name.slice(0, dot) : file.name;
+            const parts = base.split('_');
+            if (parts.length < 3) return { error: 'expected [collection]_[track name]_[A|B|lyrics|story|versions|notes]' };
+            const collectionId = slug(parts[0]);
+            const kind = parts[parts.length - 1].trim().toLowerCase();
+            // Underscores inside the track name read as spaces: vol03_Slow_Burn_A → "Slow Burn".
+            const title = parts.slice(1, -1).join(' ').replace(/\s+/g, ' ').trim();
+            if (!collectionId || !slug(title)) return { error: 'collection or track name is empty' };
+            if (kind === 'a' || kind === 'b') {
+                if (!AUDIO_EXT.test(file.name)) return { error: 'A/B files must be audio (mp3, m4a, wav, flac, aac, ogg, aiff)' };
+                return { collectionId, title, kind: kind.toUpperCase() };
+            }
+            if (ABOUT_KINDS[kind] || kind === 'about') {
+                if (!TEXT_EXT.test(file.name)) return { error: 'About texts must be .txt or .md files' };
+                return { collectionId, title, kind: 'about', aboutKind: kind === 'about' ? 'notes' : kind };
+            }
+            return { error: `last part must be A, B, lyrics, story, versions or notes (found "${parts[parts.length - 1]}")` };
+        }
+
+        async function addFiles(items) {
+            if (uploading) return toast('Wait for the current upload to finish.');
+            for (const { file, folder } of items) {
+                if (file.name.startsWith('.')) continue; // .DS_Store and friends
+                const parsed = parseFile(file);
+                if (parsed.error) {
+                    badFiles.push(`${file.name} – ${parsed.error}`);
+                    continue;
+                }
+                let group = batch.get(parsed.collectionId);
+                if (!group) batch.set(parsed.collectionId, group = { id: parsed.collectionId, folders: new Set(), songs: new Map() });
+                if (folder) group.folders.add(folder);
+                const key = slug(parsed.title);
+                let row = group.songs.get(key);
+                if (!row) group.songs.set(key, row = { title: parsed.title, A: null, B: null, lyrics: '', aboutKind: 'lyrics', lyricsFromFile: false, state: 'ready', note: '', progress: 0 });
+                if (parsed.kind === 'about') {
+                    row.lyrics = (await file.text()).replace(/\r\n/g, '\n').trim();
+                    row.aboutKind = parsed.aboutKind;
+                    row.lyricsFromFile = true;
+                } else {
+                    row[parsed.kind] = file;
+                    if (parsed.kind === 'A') row.title = parsed.title;
+                }
+            }
+            renderBatch();
+        }
+
+        const drop = $('drop');
+        drop.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            drop.classList.add('over');
+        });
+        drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+        drop.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            drop.classList.remove('over');
+            const entries = [...e.dataTransfer.items].map((i) => i.webkitGetAsEntry?.()).filter(Boolean);
+            const files = entries.length
+                ? (await Promise.all(entries.map((en) => readEntry(en, en.isDirectory ? en.name : '')))).flat()
+                : [...e.dataTransfer.files].map((file) => ({ file, folder: '' }));
+            addFiles(files);
+        });
+        $('pickFiles').addEventListener('click', () => $('fileInput').click());
+        $('pickFolder').addEventListener('click', () => $('folderInput').click());
+        $('fileInput').addEventListener('change', (e) => {
+            addFiles([...e.target.files].map((file) => ({ file, folder: '' })));
+            e.target.value = '';
+        });
+        $('folderInput').addEventListener('change', (e) => {
+            addFiles([...e.target.files].map((file) => ({ file, folder: (file.webkitRelativePath || '').split('/')[0] })));
+            e.target.value = '';
+        });
+
+        // ---------------------------------------------------------------
+        // Preview
+        // ---------------------------------------------------------------
+
+        // Works out what each row will do, and flags anything that would go wrong.
+        function assess() {
+            for (const group of batch.values()) {
+                const existing = findCollection(group.id);
+                let count = existing ? existing.order.length : 0;
+                for (const row of group.songs.values()) {
+                    if (['done', 'error', 'skipped'].includes(row.state)) {
+                        row.notes = [];
+                        continue;
+                    }
+                    const song = findSong(group.id, row.title);
+                    const notes = [];
+                    row.state = 'ready';
+                    if (!song) {
+                        if (!row.A && !row.B) {
+                            row.state = 'invalid';
+                            notes.push(['bad', 'Lyrics only, but no song with this name exists yet.']);
+                        } else if (count >= songsPerCollection) {
+                            row.state = 'invalid';
+                            notes.push(['bad', `${existing?.name || prettyName(group.id)} would go past ${songsPerCollection} songs.`]);
+                        } else {
+                            count++;
+                        }
+                    }
+                    if (row.state === 'ready') {
+                        for (const k of ['A', 'B']) {
+                            if (row[k] && song?.[k === 'A' ? 'v1' : 'v2']) notes.push(['warn', `Replaces the current version ${k}.`]);
+                        }
+                        const willHaveA = row.A || song?.v1, willHaveB = row.B || song?.v2;
+                        if (!willHaveA || !willHaveB) notes.push(['warn', `Goes live once version ${willHaveA ? 'B' : 'A'} is uploaded.`]);
+                        if (!row.A && !row.B) notes.push(['', 'Updates the About text only.']);
+                    }
+                    row.notes = notes;
+                }
+            }
+        }
+
+        function renderBatch() {
+            assess();
+            const groups = [...batch.values()];
+            $('preview').hidden = !groups.length && !badFiles.length;
+            $('groups').innerHTML = groups.map((g) => {
+                const existing = findCollection(g.id);
+                const folderWarn = [...g.folders].filter((f) => slug(f) !== g.id);
+                return `<div class="group">
+                    <div class="group-head">
+                        <div><h2>${esc(existing?.name || prettyName(g.id))}</h2>
+                            <div class="mono">${esc(g.id)} · ${existing ? `${existing.order.length}/${songsPerCollection} songs` : 'new collection'}${existing && !existing.theme ? ' · needs an art theme' : ''}</div></div>
+                    </div>
+                    ${folderWarn.length ? `<p class="note warn">Folder “${esc(folderWarn.join(', '))}” doesn't match the collection “${esc(g.id)}” in the filenames. The filenames win.</p>` : ''}
+                    ${[...g.songs.entries()].map(([key, r]) => `<div class="item" data-g="${esc(g.id)}" data-k="${esc(key)}">
+                        <div class="item-title">${esc(r.title)}</div>
+                        <div class="chips">
+                            <span class="chip ${r.A ? 'on' : ''}">A${r.A ? ` · ${mb(r.A.size)}` : ''}</span>
+                            <span class="chip ${r.B ? 'on' : ''}">B${r.B ? ` · ${mb(r.B.size)}` : ''}</span>
+                            <span class="chip ${r.lyrics ? 'on' : ''}">ABOUT</span>
+                            ${['ready', 'invalid'].includes(r.state) && !uploading ? `<button class="chip" data-remove title="Remove from this upload">✕</button>` : ''}
+                        </div>
+                        ${(r.notes || []).map(([cls, t]) => `<div class="note ${cls}">${esc(t)}</div>`).join('')}
+                        ${r.note ? `<div class="note ${r.state === 'error' ? 'bad' : r.state === 'done' ? 'ok' : ''}">${esc(r.note)}</div>` : ''}
+                        ${uploading || r.state === 'done' ? `<div class="bar"><i style="width:${(r.progress * 100).toFixed(1)}%"></i></div>` : ''}
+                        ${['ready', 'invalid'].includes(r.state) ? `<details ${r.lyrics && !r.lyricsFromFile ? 'open' : ''}>
+                            <summary>About this song${r.lyrics ? ` · ${ABOUT_KINDS[r.aboutKind]}` : ' (optional)'}${r.lyricsFromFile ? ' (from file)' : ''}</summary>
+                            <div class="row" style="margin-top:8px">${aboutSelect(r.aboutKind)}</div>
+                            <textarea data-lyrics placeholder="Lyrics, the story behind it, how the two versions differ…">${esc(r.lyrics)}</textarea>
+                        </details>` : ''}
+                    </div>`).join('')}
+                </div>`;
+            }).join('');
+            $('badFiles').innerHTML = badFiles.length
+                ? `<strong>Skipped ${badFiles.length} file${badFiles.length > 1 ? 's' : ''}:</strong><br>${badFiles.map(esc).join('<br>')}`
+                : '';
+            const ready = groups.flatMap((g) => [...g.songs.values()]).filter((r) => r.state === 'ready');
+            const files = ready.reduce((n, r) => n + (r.A ? 1 : 0) + (r.B ? 1 : 0), 0);
+            $('uploadBatch').disabled = uploading || !ready.length;
+            $('uploadBatch').textContent = uploading ? 'Uploading…' : `Upload ${ready.length} song${ready.length === 1 ? '' : 's'}${files ? ` · ${files} file${files === 1 ? '' : 's'}` : ''}`;
+            $('clearBatch').disabled = uploading;
+        }
+
+        $('groups').addEventListener('input', (e) => {
+            if (!e.target.matches('[data-lyrics], [data-about-kind]')) return;
+            const item = e.target.closest('.item');
+            const row = batch.get(item.dataset.g).songs.get(item.dataset.k);
+            if (e.target.matches('[data-about-kind]')) {
+                row.aboutKind = e.target.value;
+            } else {
+                row.lyrics = e.target.value;
+                row.lyricsFromFile = false;
+            }
+        });
+        $('groups').addEventListener('click', (e) => {
+            if (!e.target.closest('[data-remove]')) return;
+            const item = e.target.closest('.item');
+            const group = batch.get(item.dataset.g);
+            group.songs.delete(item.dataset.k);
+            if (!group.songs.size) batch.delete(group.id);
+            renderBatch();
+        });
+        $('clearBatch').addEventListener('click', () => {
+            batch = new Map();
+            badFiles = [];
+            renderBatch();
+        });
+
+        // ---------------------------------------------------------------
+        // Theme prompt
+        // ---------------------------------------------------------------
+
+        function askTheme(collectionId, existing) {
+            return new Promise((resolve) => {
+                $('themeKicker').textContent = existing ? `${existing.name} · ${collectionId}` : `New collection · ${collectionId}`;
+                $('themeTitle').textContent = existing ? 'This collection needs an art theme' : 'Set the art theme';
+                $('themeName').value = existing?.name && existing.name !== collectionId ? existing.name : prettyName(collectionId);
+                $('themeText').value = existing?.theme || '';
+                $('themeExamples').innerHTML = THEME_EXAMPLES.map((t) => `<button type="button">${esc(t)}</button>`).join('');
+                $('themeModal').hidden = false;
+                $('themeText').focus();
+                const done = (value) => {
+                    $('themeModal').hidden = true;
+                    $('themeForm').onsubmit = null;
+                    $('themeCancel').onclick = null;
+                    resolve(value);
+                };
+                $('themeForm').onsubmit = (e) => {
+                    e.preventDefault();
+                    done({ name: $('themeName').value.trim(), theme: $('themeText').value.trim() });
+                };
+                $('themeCancel').onclick = () => done(null);
+            });
+        }
+
+        $('themeExamples').addEventListener('click', (e) => {
+            if (e.target.matches('button')) $('themeText').value = e.target.textContent;
+        });
+
+        // ---------------------------------------------------------------
+        // Upload
+        // ---------------------------------------------------------------
+
+        async function uploadFile(collectionId, songId, version, file, onProgress) {
+            const parts = Math.max(1, Math.ceil(file.size / CHUNK));
+            const rev = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            const send = async (i) => {
+                const qs = new URLSearchParams({
+                    collection: collectionId, song: songId, version, rev, part: i, parts, size: file.size,
+                    type: file.type || MIME[ext] || 'audio/mpeg', name: file.name
+                });
+                for (let attempt = 1; ; attempt++) {
+                    try {
+                        return await api(`/api/upload?${qs}`, { method: 'POST', raw: file.slice(i * CHUNK, (i + 1) * CHUNK) });
+                    } catch (err) {
+                        // The last part reports any earlier part that never landed; re-send it, then retry.
+                        const missing = err.data?.missingPart;
+                        if (Number.isInteger(missing) && missing !== i && attempt < 3) {
+                            await send(missing);
+                            continue;
+                        }
+                        if (attempt >= 3 || err.message.startsWith('Signed out')) throw err;
+                        await new Promise((r) => setTimeout(r, 1000 * attempt));
+                    }
+                }
+            };
+            let result;
+            for (let i = 0; i < parts; i++) {
+                result = await send(i);
+                onProgress((i + 1) / parts);
+            }
+            return result.song;
+        }
+
+        $('uploadBatch').addEventListener('click', () => serial(async () => {
+            uploading = true;
+            renderBatch();
+            try {
+                for (const group of batch.values()) {
+                    const rows = [...group.songs.values()].filter((r) => r.state === 'ready');
+                    if (!rows.length) continue;
+
+                    let collection = findCollection(group.id);
+                    if (!collection || !collection.theme) {
+                        const answer = await askTheme(group.id, collection);
+                        if (!answer) {
+                            rows.forEach((r) => Object.assign(r, { state: 'skipped', note: 'Skipped – no art theme.' }));
+                            renderBatch();
+                            continue;
+                        }
+                        ({ collection } = await api('/api/admin/collection', { method: 'POST', body: { id: group.id, ...answer } }));
+                        await refresh();
+                    }
+
+                    for (const row of rows) {
+                        const totalBytes = (row.A?.size || 0) + (row.B?.size || 0) || 1;
+                        let doneBytes = 0;
+                        const setNote = (t) => { row.note = t; renderBatch(); };
+                        try {
+                            setNote('Preparing…');
+                            let { song } = await api('/api/admin/song', { method: 'POST', body: { collectionId: group.id, title: row.title, lyrics: row.lyrics, aboutKind: row.aboutKind } });
+                            for (const k of ['A', 'B']) {
+                                const file = row[k];
+                                if (!file) continue;
+                                setNote(`Uploading ${k} (${mb(file.size)})…`);
+                                song = await uploadFile(group.id, song.id, k === 'A' ? 'v1' : 'v2', file, (p) => {
+                                    row.progress = (doneBytes + p * file.size) / totalBytes;
+                                    renderBatch();
+                                });
+                                doneBytes += file.size;
+                            }
+                            row.progress = 1;
+                            const live = song.v1 && song.v2;
+                            if (live && !song.cover) {
+                                setNote('Generating cover…');
+                                const res = await api('/api/cover', { method: 'POST', body: { collectionId: group.id, songId: song.id } });
+                                if (res.warning) toast(res.warning);
+                            }
+                            row.state = 'done';
+                            setNote(live ? 'Live in the listening room.' : `Uploaded. Goes live once version ${song.v1 ? 'B' : 'A'} arrives.`);
+                        } catch (err) {
+                            row.state = 'error';
+                            setNote(`Failed: ${err.message}`);
+                        }
+                    }
+                }
+            } finally {
+                uploading = false;
+                await refresh().catch(() => {});
+                renderBatch();
+            }
+        }));
+
+        // ---------------------------------------------------------------
+        // Results
+        // ---------------------------------------------------------------
+
+        let votes = [];
+
+        async function loadVotes() {
+            votes = (await api('/api/admin/votes')).votes;
+            renderResults();
+        }
+
+        function renderResults() {
+            const bySong = new Map();
+            for (const v of votes) {
+                if (!bySong.has(v.songId)) bySong.set(v.songId, []);
+                bySong.get(v.songId).push(v);
+            }
+            const sections = catalog.collections.map((c) => {
+                const rows = c.order.map((id) => c.songs[id]).filter((s) => s && s.v1 && s.v2).map((s) => {
+                    const list = bySong.get(s.id) || [];
+                    const a = list.filter((v) => v.choseVersion === 'v1').length;
+                    const b = list.length - a;
+                    const pa = list.length ? Math.round((a / list.length) * 100) : 0;
+                    const notes = list.filter((v) => v.note).sort((x, y) => y.votedAt.localeCompare(x.votedAt));
+                    return `<div class="tally">
+                        <div>${esc(s.title)}</div>
+                        <div class="split">${list.length
+                            ? `${a ? `<span class="a" style="width:${pa}%">A ${a} · ${pa}%</span>` : ''}${b ? `<span class="b" style="width:${100 - pa}%">B ${b} · ${100 - pa}%</span>` : ''}`
+                            : '<span class="mono">no votes yet</span>'}</div>
+                        <div class="mono">${list.length} vote${list.length === 1 ? '' : 's'}</div>
+                        ${notes.length ? `<details><summary>${notes.length} note${notes.length === 1 ? '' : 's'}</summary><ul class="notes">${notes.map((v) =>
+                            `<li><span class="chip ${v.choseVersion === 'v1' ? 'copper' : ''}">${v.choseVersion === 'v1' ? 'A' : 'B'}</span> ${esc(v.note)} <span class="mono">– ${esc(v.listenerName || 'anonymous')}</span></li>`
+                        ).join('')}</ul></details>` : ''}
+                    </div>`;
+                });
+                return rows.length ? `<div class="group"><h2>${esc(c.name)}</h2>${rows.join('')}</div>` : '';
+            }).join('');
+            $('resultsBody').innerHTML = sections
+                ? `<p class="mono">${votes.length} vote${votes.length === 1 ? '' : 's'} in total · A and B are your _A and _B files, whichever deck listeners heard them on.</p>${sections}`
+                : '<p class="mono">Results appear here once songs are live.</p>';
+            $('downloadCsv').disabled = !votes.length;
+        }
+
+        function downloadCsv() {
+            const songTitle = (id) => catalog.collections.flatMap((c) => Object.values(c.songs)).find((s) => s.id === id)?.title || id;
+            const header = ['votedAt', 'collection', 'song', 'listener', 'picked', 'shownOnDeck', 'secondsOnDeckA', 'secondsOnDeckB', 'switches', 'changedVote', 'note'];
+            const rows = votes.map((v) => [
+                v.votedAt, v.collection, songTitle(v.songId), v.listenerName, v.choseVersion === 'v1' ? 'A' : 'B',
+                v.shownAs, v.secondsA, v.secondsB, v.switches, v.changed ? 'yes' : 'no', v.note
+            ]);
+            const cell = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
+            const csv = [header, ...rows].map((r) => r.map(cell).join(',')).join('\r\n');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
+            a.download = `abnocd-votes-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
+
+        $('refreshVotes').addEventListener('click', () => loadVotes().catch((err) => toast(err.message)));
+        $('downloadCsv').addEventListener('click', downloadCsv);
+
+        async function refresh() {
+            catalog = await api('/api/admin/catalog');
+            renderCollections();
+            renderResults();
+        }
+
+        // ---------------------------------------------------------------
+        // Collections
+        // ---------------------------------------------------------------
+
+        const busyCovers = new Set();
+
+        function renderCollections() {
+            $('collections').innerHTML = catalog.collections.map((c) => {
+                const songs = c.order.map((id) => c.songs[id]).filter(Boolean);
+                const live = songs.filter((s) => s.v1 && s.v2).length;
+                return `<section class="card" data-c="${esc(c.id)}">
+                    <div class="card-head">
+                        <div>
+                            <div class="kicker">${esc(c.id)} · ${live} live · ${songs.length}/${songsPerCollection} songs</div>
+                            <h1 style="font-size:34px;margin-top:4px">${esc(c.name)}</h1>
+                        </div>
+                        <div class="row">
+                            <button class="btn ghost small" data-act="copy-link" ${live ? '' : 'disabled'} title="Copy the listening-room link for this collection">Copy link</button>
+                            <button class="btn ghost small danger" data-act="delete-collection">Delete</button>
+                        </div>
+                    </div>
+                    <div class="row" style="align-items:flex-start">
+                        <label class="field" style="flex:1 1 200px;margin:0"><span>Name</span><input type="text" data-field="name" value="${esc(c.name)}" maxlength="40"></label>
+                        <label class="field" style="flex:3 1 320px;margin:0"><span>Art theme</span><textarea data-field="theme" maxlength="500" style="min-height:62px">${esc(c.theme)}</textarea></label>
+                    </div>
+                    <div class="row" style="margin-top:10px;justify-content:flex-end">
+                        <button class="btn ghost small" data-act="regen-all" ${live ? '' : 'disabled'}>Regenerate all covers</button>
+                        <button class="btn small" data-act="save-collection">Save</button>
+                    </div>
+                    <ol class="songs">
+                        ${songs.map((s, i) => `<li class="song" draggable="true" data-s="${esc(s.id)}">
+                            <span class="handle" title="Drag to reorder">⋮⋮</span>
+                            <div class="thumb ${busyCovers.has(s.id) ? 'busy' : ''}" style="${s.cover ? `background-image:url('/api/cover/${encodeURI(s.cover.key)}')` : ''}"></div>
+                            <div class="song-main">
+                                <input type="text" data-title value="${esc(s.title)}" aria-label="Song title">
+                                <div class="chips" style="margin:4px 0 0 6px">
+                                    <span class="mono">${String(i + 1).padStart(2, '0')}</span>
+                                    <span class="chip ${s.v1 ? 'on' : ''}">A</span>
+                                    <span class="chip ${s.v2 ? 'on' : ''}">B</span>
+                                    <span class="chip ${s.v1 && s.v2 ? 'copper' : ''}">${s.v1 && s.v2 ? 'LIVE' : 'WAITING'}</span>
+                                    ${s.cover ? `<span class="chip">${s.cover.source === 'generative' ? 'GENERATIVE COVER' : 'AI COVER'}</span>` : ''}
+                                </div>
+                                ${s.v1 && s.v2 ? '' : `<p class="note warn" style="margin:6px 0 0 6px">Missing version ${s.v1 ? 'B' : 'A'} – not playable yet. Upload <code>${esc(c.id)}_${esc(s.title)}_${s.v1 ? 'B' : 'A'}.mp3</code> (any audio format) to make it live.</p>`}
+                            </div>
+                            <div class="song-actions">
+                                <div class="row">
+                                    <button class="btn ghost small" data-act="cover" ${s.v1 && s.v2 ? '' : 'disabled'} title="Generate a new cover">New cover</button>
+                                    <button class="btn ghost small" data-act="cover-gen" ${s.v1 && s.v2 ? '' : 'disabled'} title="Generative art, no AI">Generative</button>
+                                    <button class="btn ghost small" data-act="copy-link" ${s.v1 && s.v2 ? '' : 'disabled'} title="Copy the listening-room link for this song">Copy link</button>
+                                </div>
+                                <div class="row">
+                                    <button class="btn ghost small" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+                                    <button class="btn ghost small" data-act="down" ${i === songs.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
+                                    <button class="btn ghost small danger" data-act="delete-song">Delete</button>
+                                </div>
+                            </div>
+                            <details>
+                                <summary>About this song${s.lyrics ? ` · ${ABOUT_KINDS[s.aboutKind || 'lyrics']}` : ' (none yet)'}</summary>
+                                <div class="row" style="margin-top:8px">${aboutSelect(s.aboutKind)}</div>
+                                <textarea data-lyrics placeholder="Lyrics, the story behind it, how the two versions differ…">${esc(s.lyrics)}</textarea>
+                                <div class="row" style="margin-top:6px;justify-content:flex-end"><button class="btn small" data-act="save-lyrics">Save</button></div>
+                            </details>
+                        </li>`).join('')}
+                    </ol>
+                    ${songs.length ? '' : '<p class="mono" style="margin-top:12px">No songs yet.</p>'}
+                </section>`;
+            }).join('');
+        }
+
+        function act(label, fn) {
+            return serial(fn).then(() => label && toast(label)).catch((err) => toast(err.message)).finally(() => refresh().catch(() => {}));
+        }
+
+        async function makeCover(collectionId, songId, mode) {
+            busyCovers.add(songId);
+            renderCollections();
+            try {
+                const res = await api('/api/cover', { method: 'POST', body: { collectionId, songId, mode } });
+                if (res.warning) toast(res.warning);
+            } finally {
+                busyCovers.delete(songId);
+            }
+        }
+
+        async function moveSong(c, order) {
+            await api('/api/admin/order', { method: 'POST', body: { collectionId: c.id, order } });
+        }
+
+        $('collections').addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-act]');
+            if (!btn || btn.disabled) return;
+            const card = btn.closest('[data-c]');
+            const c = findCollection(card.dataset.c);
+            const li = btn.closest('[data-s]');
+            const songId = li?.dataset.s;
+            const song = songId && c.songs[songId];
+
+            switch (btn.dataset.act) {
+                case 'save-collection':
+                    act('Collection saved.', () => api('/api/admin/collection', { method: 'POST', body: {
+                        id: c.id, name: card.querySelector('[data-field=name]').value, theme: card.querySelector('[data-field=theme]').value
+                    } }));
+                    break;
+                case 'delete-collection':
+                    if (confirm(`Delete ${c.name} and all ${c.order.length} songs, audio and covers? This can't be undone.`)) {
+                        act('Collection deleted.', () => api('/api/admin/collection', { method: 'DELETE', body: { id: c.id } }));
+                    }
+                    break;
+                case 'regen-all':
+                    if (confirm(`Generate new covers for every live song in ${c.name}?`)) {
+                        act('Covers regenerated.', async () => {
+                            for (const id of c.order) {
+                                if (c.songs[id].v1 && c.songs[id].v2) await makeCover(c.id, id, 'auto');
+                            }
+                        });
+                    }
+                    break;
+                case 'cover':
+                case 'cover-gen':
+                    act('New cover ready.', () => makeCover(c.id, songId, btn.dataset.act === 'cover' ? 'auto' : 'generative'));
+                    break;
+                case 'up':
+                case 'down': {
+                    const order = [...c.order];
+                    const i = order.indexOf(songId), j = i + (btn.dataset.act === 'up' ? -1 : 1);
+                    [order[i], order[j]] = [order[j], order[i]];
+                    act('', () => moveSong(c, order));
+                    break;
+                }
+                case 'copy-link': {
+                    const url = `${location.origin}/${encodeURIComponent(c.id)}${song ? `/${encodeURIComponent(song.id.slice(c.id.length + 1))}` : ''}`;
+                    navigator.clipboard.writeText(url)
+                        .then(() => toast(`Link copied – ${url.replace(/^https?:\/\//, '')}`))
+                        .catch(() => prompt('Copy this link:', url));
+                    break;
+                }
+                case 'delete-song':
+                    if (confirm(`Delete “${song.title}”, both versions and its cover?`)) {
+                        act('Song deleted.', () => api('/api/admin/song', { method: 'DELETE', body: { collectionId: c.id, songId } }));
+                    }
+                    break;
+                case 'save-lyrics':
+                    act('About text saved.', () => api('/api/admin/song', { method: 'PATCH', body: {
+                        collectionId: c.id, songId, lyrics: li.querySelector('[data-lyrics]').value, aboutKind: li.querySelector('[data-about-kind]').value
+                    } }));
+                    break;
+            }
+        });
+
+        $('collections').addEventListener('change', (e) => {
+            if (!e.target.matches('[data-title]')) return;
+            const c = findCollection(e.target.closest('[data-c]').dataset.c);
+            const songId = e.target.closest('[data-s]').dataset.s;
+            const title = e.target.value.trim();
+            if (title && title !== c.songs[songId].title) {
+                act('Title saved.', () => api('/api/admin/song', { method: 'PATCH', body: { collectionId: c.id, songId, title } }));
+            }
+        });
+
+        // Drag to reorder
+        let dragId = null;
+        $('collections').addEventListener('dragstart', (e) => {
+            const li = e.target.closest?.('[data-s]');
+            if (!li || e.target.closest('input, textarea')) return;
+            dragId = li.dataset.s;
+            li.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        $('collections').addEventListener('dragover', (e) => {
+            const li = e.target.closest('[data-s]');
+            if (!dragId || !li) return;
+            e.preventDefault();
+            document.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
+            li.classList.add('drop-target');
+        });
+        $('collections').addEventListener('dragend', () => {
+            dragId = null;
+            document.querySelectorAll('.dragging, .drop-target').forEach((el) => el.classList.remove('dragging', 'drop-target'));
+        });
+        $('collections').addEventListener('drop', (e) => {
+            const li = e.target.closest('[data-s]');
+            if (!dragId || !li) return;
+            e.preventDefault();
+            const c = findCollection(li.closest('[data-c]').dataset.c);
+            if (!c.order.includes(dragId)) return;
+            const order = c.order.filter((id) => id !== dragId);
+            order.splice(order.indexOf(li.dataset.s) + (c.order.indexOf(dragId) < c.order.indexOf(li.dataset.s) ? 1 : 0), 0, dragId);
+            act('', () => moveSong(c, order));
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !$('themeModal').hidden) $('themeCancel').click();
+        });
+
+        loadCatalog().catch(() => showLogin());
+    </script>
+</body>
+</html>

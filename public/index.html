@@ -1,0 +1,2603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>AB/noCD – KŮA Listening Lab</title>
+    <meta name="description" content="Two versions of every song. Listen to A and B, then pick the one that should be released.">
+    <meta property="og:title" content="AB/noCD – KŮA Listening Lab">
+    <meta property="og:description" content="Two versions of every song. Listen to A and B, then pick the one that should be released.">
+    <meta property="og:image" content="https://listen.sidmofya.com/assets/scene-wide.jpg">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,700;1,700&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600&family=Newsreader:ital,opsz@0,6..72;1,6..72&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --copper: #b87333;
+            --copper-lt: #d4a574;
+            --glass: rgba(24, 22, 20, 0.34);
+            --glass-strong: rgba(22, 20, 18, 0.74);
+            --line: rgba(255, 255, 255, 0.78);
+            --line-soft: rgba(255, 255, 255, 0.18);
+            --muted: rgba(255, 255, 255, 0.62);
+            --nav-h: 40px;
+            --gutter: 10px;
+            --ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --cond: 'Archivo Narrow', 'Arial Narrow', sans-serif;
+            --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+            --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+            --paper: rgba(239, 233, 222, 0.94);
+            --ink: #2a2420;
+            --ink-soft: rgba(42, 36, 32, 0.55);
+            --rust: #8b4513;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            color: #fff;
+            font-family: var(--ui);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        button {
+            font: inherit;
+            color: inherit;
+            background: none;
+            border: 0;
+            cursor: pointer;
+        }
+
+        button:focus-visible, textarea:focus-visible, input:focus-visible {
+            outline: 2px solid var(--copper-lt);
+            outline-offset: 2px;
+        }
+
+        /* ---------- Top nav ---------- */
+
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--nav-h);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 0 12px;
+            background: #fff;
+            color: #000;
+            z-index: 30;
+        }
+
+        .wordmark {
+            font-family: var(--cond);
+            font-weight: 700;
+            font-size: 19px;
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+        }
+
+        .wordmark sup {
+            font-size: 9px;
+        }
+
+        .collections {
+            display: flex;
+            gap: 18px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .collections::-webkit-scrollbar {
+            display: none;
+        }
+
+        .collections button {
+            font-family: var(--cond);
+            font-weight: 700;
+            font-size: 15px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            color: #000;
+        }
+
+        .collections button[aria-current="true"] {
+            font-style: italic;
+        }
+
+        .collections sup {
+            font-family: var(--mono);
+            font-style: normal;
+            font-size: 9px;
+            font-weight: 500;
+            margin-left: 2px;
+            color: #777;
+        }
+
+        /* ---------- Stage & scene ---------- */
+
+        .stage {
+            position: fixed;
+            top: var(--nav-h);
+            left: var(--gutter);
+            right: var(--gutter);
+            bottom: var(--gutter);
+            overflow: hidden;
+            background: #8e8c88;
+        }
+
+        .scene {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1600px;
+            height: 900px;
+            transform-origin: 0 0;
+            transition: transform 1.1s cubic-bezier(0.65, 0, 0.25, 1);
+            will-change: transform;
+        }
+
+        .scene > img, .scene > svg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1600px;
+            height: 900px;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        .scene > svg {
+            pointer-events: none;
+        }
+
+        /* ---------- Glass panels ---------- */
+
+        .panel {
+            position: absolute;
+            top: 24px;
+            width: 288px;
+            background: var(--glass);
+            border: 1px solid var(--line);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            z-index: 6;
+            transition: width 0.35s ease;
+        }
+
+        .panel-left {
+            left: 24px;
+        }
+
+        .panel-right {
+            right: 24px;
+        }
+
+        .panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 14px 16px 10px;
+            font-size: 15px;
+            font-weight: 500;
+            text-transform: uppercase;
+            text-align: left;
+        }
+
+        .chev {
+            width: 12px;
+            height: 12px;
+            flex: none;
+            transition: transform 0.3s ease;
+        }
+
+        [aria-expanded="true"] .chev {
+            transform: rotate(180deg);
+        }
+
+        .panel-song {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            padding: 6px 16px 14px;
+            min-width: 0;
+        }
+
+        .cover {
+            width: 38px;
+            height: 38px;
+            flex: none;
+            display: grid;
+            place-items: center;
+            font-family: var(--cond);
+            font-size: 13px;
+            background-size: cover;
+            background-position: center;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+        }
+
+        .song-meta {
+            min-width: 0;
+        }
+
+        .song-title {
+            font-size: 15px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .song-sub {
+            font-size: 12px;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .panel-foot {
+            border-top: 1px solid var(--line-soft);
+            padding: 12px 16px 14px;
+        }
+
+        /* "About this song": a paper liner-notes card, deliberately unlike the glass song picker. */
+        .about {
+            color: var(--ink);
+            background-color: var(--paper);
+            background-image: radial-gradient(rgba(42, 36, 32, 0.05) 1px, transparent 1px);
+            background-size: 3px 3px;
+            border: 0;
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+        }
+
+        .about .panel-head {
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            padding: 12px 16px 10px;
+            border-bottom: 1px solid rgba(42, 36, 32, 0.16);
+        }
+
+        .about-body {
+            padding: 12px 16px 16px;
+        }
+
+        .about-kind {
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--rust);
+            margin-bottom: 6px;
+        }
+
+        .about-map {
+            font-family: var(--mono);
+            font-size: 10.5px;
+            line-height: 1.5;
+            color: var(--rust);
+            margin-bottom: 8px;
+        }
+
+        .about-text {
+            font-family: var(--serif);
+            font-size: 15px;
+            line-height: 1.5;
+            white-space: pre-line;
+            max-height: 4.5em;
+            overflow: hidden;
+            -webkit-mask-image: linear-gradient(#000 55%, transparent);
+            mask-image: linear-gradient(#000 55%, transparent);
+        }
+
+        .about-text.muted {
+            font-style: italic;
+            color: var(--ink-soft);
+        }
+
+        .panel-left.expanded {
+            width: 380px;
+        }
+
+        .panel-left.expanded .about-text {
+            max-height: min(58vh, 520px);
+            overflow-y: auto;
+            -webkit-mask-image: none;
+            mask-image: none;
+            padding-right: 6px;
+        }
+
+        .picker-list {
+            display: none;
+            max-height: min(48vh, 420px);
+            overflow-y: auto;
+            border-top: 1px solid var(--line-soft);
+        }
+
+        .panel-right.open {
+            background: var(--glass-strong);
+        }
+
+        .panel-right.open .picker-list {
+            display: block;
+        }
+
+        .picker-list button {
+            display: grid;
+            grid-template-columns: 26px 1fr auto;
+            gap: 8px;
+            align-items: center;
+            width: 100%;
+            padding: 9px 16px;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        .picker-list button:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .picker-list button.current {
+            background: rgba(184, 115, 51, 0.32);
+        }
+
+        .picker-list .n {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .picker-list .v {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--copper-lt);
+            text-transform: uppercase;
+        }
+
+        .picker-foot {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .picker-foot .step {
+            width: 18px;
+            height: 18px;
+            display: grid;
+            place-items: center;
+            opacity: 0.75;
+        }
+
+        .picker-foot .step:hover {
+            opacity: 1;
+        }
+
+        .picker-foot .step:disabled {
+            opacity: 0.25;
+            cursor: default;
+        }
+
+        .share-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--mono);
+            font-size: 10.5px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.8);
+            transition: color 0.2s ease;
+        }
+
+        .share-link:hover {
+            color: var(--copper-lt);
+        }
+
+        .picker-list .share-link {
+            display: flex;
+            width: 100%;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .sent {
+            margin-top: 10px;
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            color: var(--copper-lt);
+        }
+
+        .sent:empty {
+            display: none;
+        }
+
+        .dots {
+            display: flex;
+            gap: 5px;
+            margin-left: auto;
+        }
+
+        .dots i {
+            width: 7px;
+            height: 7px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+        }
+
+        .dots i.voted {
+            background: #fff;
+        }
+
+        .dots i.current {
+            border-color: var(--copper-lt);
+            box-shadow: 0 0 0 2px rgba(184, 115, 51, 0.55);
+        }
+
+        /* ---------- Hint, A/B slider, bars ---------- */
+
+        .hint {
+            position: absolute;
+            left: 50%;
+            bottom: 140px;
+            transform: translateX(-50%);
+            font-size: 13px;
+            white-space: nowrap;
+            text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+            z-index: 5;
+            transition: opacity 0.3s ease;
+        }
+
+        .hint:empty {
+            opacity: 0;
+        }
+
+        /* A/B slider: a fader slot and cap, so it reads as something to drag. */
+        .xfader {
+            position: absolute;
+            left: 50%;
+            bottom: 74px;
+            transform: translateX(-50%);
+            width: 240px;
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 500;
+            text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+            z-index: 5;
+            user-select: none;
+        }
+
+        .xfader-row {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 12px 4px;
+            touch-action: none;
+            cursor: grab;
+            outline: none;
+        }
+
+        .xfader.dragging .xfader-row {
+            cursor: grabbing;
+        }
+
+        .xfader-row:focus-visible .xfader-track {
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 0 2px var(--copper-lt);
+        }
+
+        .xfader-track {
+            position: relative;
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(10, 8, 6, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
+            /* Tick marks at the A end, the centre and the B end */
+            background-image: linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
+                              linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)),
+                              linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7));
+            background-size: 1px 12px;
+            background-position: 0 50%, 50% 50%, 100% 50%;
+            background-repeat: no-repeat;
+            overflow: visible;
+        }
+
+        .xfader-knob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 28px;
+            height: 20px;
+            margin: -10px 0 0 -14px;
+            border-radius: 4px;
+            /* Grip lines over a brushed-metal cap */
+            background:
+                repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 4px) 50% 50% / 9px 10px no-repeat,
+                linear-gradient(#f4f4f2, #bdbdb8 55%, #d8d8d4);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            transition: left 0.45s cubic-bezier(0.65, 0, 0.35, 1), transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+        }
+
+        /* Sideways chevrons either side of the cap hint that it slides */
+        .xfader-knob::before,
+        .xfader-knob::after {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-56%);
+            font-size: 15px;
+            line-height: 1;
+            color: rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+        }
+
+        .xfader-knob::before {
+            content: '‹';
+            right: calc(100% + 5px);
+        }
+
+        .xfader-knob::after {
+            content: '›';
+            left: calc(100% + 5px);
+        }
+
+        /* At either end, only the chevron pointing back along the slot makes sense */
+        .xfader[data-pos="A"] .xfader-knob::before,
+        .xfader[data-pos="B"] .xfader-knob::after {
+            opacity: 0;
+        }
+
+        .xfader-row:hover .xfader-knob {
+            transform: scale(1.06);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+
+        .xfader.live .xfader-knob {
+            background:
+                repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.3) 0 1px, transparent 1px 4px) 50% 50% / 9px 10px no-repeat,
+                linear-gradient(#e7b27f, var(--copper) 55%, #c98a4e);
+        }
+
+        .xfader.dragging .xfader-knob {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transform: scale(1.08);
+        }
+
+        .xfader.nudge .xfader-knob {
+            animation: nudge 1.2s ease-in-out 1;
+        }
+
+        @keyframes nudge {
+            0%, 100% { margin-left: -14px; }
+            25% { margin-left: -24px; }
+            60% { margin-left: -4px; }
+        }
+
+        .bars {
+            position: absolute;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            z-index: 6;
+        }
+
+        .bar {
+            position: relative;
+            height: 46px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid var(--line);
+            -webkit-backdrop-filter: blur(6px);
+            backdrop-filter: blur(6px);
+            font-size: 15px;
+            font-weight: 500;
+            text-transform: uppercase;
+            transition: background 0.25s ease, border-color 0.25s ease;
+        }
+
+        .bar:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .bar.active {
+            background: rgba(184, 115, 51, 0.4);
+            border-color: var(--copper-lt);
+        }
+
+        .bar .prog {
+            position: absolute;
+            left: -1px;
+            right: -1px;
+            top: -6px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .bar .prog i {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: #fff;
+        }
+
+        .bar.active .prog i {
+            background: var(--copper-lt);
+        }
+
+        .bar .time {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .bar .state {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            width: 12px;
+            height: 12px;
+            transform: translateY(-50%);
+        }
+
+        .bar .sub {
+            font-family: var(--mono);
+            font-size: 9.5px;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            margin-top: 2px;
+            white-space: nowrap;
+        }
+
+        .bar[aria-disabled="true"] {
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+        /* ---------- Overlays ---------- */
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 16px;
+            background: rgba(12, 10, 8, 0.32);
+            -webkit-backdrop-filter: blur(2px);
+            backdrop-filter: blur(2px);
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease;
+        }
+
+        .overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .card {
+            width: min(440px, 100%);
+            max-height: 100%;
+            overflow-y: auto;
+            padding: 26px 24px 24px;
+            background: var(--glass-strong);
+            border: 1px solid var(--line);
+            -webkit-backdrop-filter: blur(14px);
+            backdrop-filter: blur(14px);
+        }
+
+        .card h1 {
+            font-family: var(--cond);
+            font-weight: 700;
+            font-size: 56px;
+            line-height: 1;
+            letter-spacing: -0.02em;
+        }
+
+        .card h1 em {
+            color: var(--copper-lt);
+        }
+
+        .card h2 {
+            font-size: 15px;
+            font-weight: 500;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .card p {
+            font-size: 14px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.82);
+            margin-top: 12px;
+        }
+
+        .card .kicker {
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+
+        .field {
+            display: block;
+            margin-top: 20px;
+        }
+
+        .field span {
+            display: block;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .field input, .field textarea {
+            width: 100%;
+            padding: 11px 12px;
+            font: inherit;
+            font-size: 15px;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--line-soft);
+        }
+
+        .field textarea {
+            min-height: 76px;
+            resize: vertical;
+            font-size: 14px;
+        }
+
+        .field input::placeholder, .field textarea::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .cta {
+            display: block;
+            width: 100%;
+            margin-top: 18px;
+            padding: 13px;
+            background: #fff;
+            color: #000;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            transition: background 0.2s ease, opacity 0.2s ease;
+        }
+
+        .cta:hover {
+            background: var(--copper-lt);
+        }
+
+        .cta:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            background: #fff;
+        }
+
+        .cta.ghost {
+            background: transparent;
+            color: #fff;
+            border: 1px solid var(--line-soft);
+            margin-top: 10px;
+        }
+
+        .choices {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .choice {
+            height: 124px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.06);
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .choice:hover {
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .choice b {
+            font-family: var(--cond);
+            font-size: 58px;
+            line-height: 1;
+        }
+
+        .choice small {
+            font-family: var(--mono);
+            font-size: 10.5px;
+            color: var(--muted);
+        }
+
+        .choice[aria-pressed="true"] {
+            background: rgba(184, 115, 51, 0.5);
+            border-color: var(--copper-lt);
+        }
+
+        .toast {
+            position: absolute;
+            left: 50%;
+            top: 24px;
+            transform: translate(-50%, -8px);
+            max-width: calc(100% - 32px);
+            padding: 10px 16px;
+            font-size: 13px;
+            background: var(--glass-strong);
+            border: 1px solid var(--line);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            z-index: 25;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        .cal {
+            position: absolute;
+            left: 12px;
+            bottom: 70px;
+            width: 320px;
+            z-index: 26;
+            padding: 10px;
+            background: var(--glass-strong);
+            border: 1px solid var(--line);
+            font-family: var(--mono);
+            font-size: 11px;
+        }
+
+        .cal textarea {
+            width: 100%;
+            height: 150px;
+            margin-top: 6px;
+            font: inherit;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--line-soft);
+        }
+
+        @media (max-width: 760px) {
+            .panel {
+                top: 12px;
+                width: calc(50% - 18px);
+            }
+
+            .picker-foot .share-link span {
+                display: none;
+            }
+
+            .panel-left {
+                left: 12px;
+            }
+
+            .panel-right {
+                right: 12px;
+            }
+
+            .panel-left.expanded, .panel-right.open {
+                width: calc(100% - 24px);
+                z-index: 8;
+            }
+
+            .panel-head {
+                font-size: 12px;
+                padding: 10px 12px 6px;
+            }
+
+            .panel-song {
+                gap: 10px;
+                padding: 4px 12px 10px;
+            }
+
+            .cover {
+                width: 30px;
+                height: 30px;
+            }
+
+            .song-title {
+                font-size: 13px;
+            }
+
+            .song-sub {
+                font-size: 11px;
+            }
+
+            .panel-foot {
+                padding: 10px 12px;
+            }
+
+            .about-text {
+                font-size: 13px;
+                max-height: 3em;
+            }
+
+            .about-body {
+                padding: 10px 12px 12px;
+            }
+
+            .dots {
+                gap: 3px;
+            }
+
+            .dots i {
+                width: 6px;
+                height: 6px;
+            }
+
+            .bars {
+                gap: 6px;
+                left: 6px;
+                right: 6px;
+                bottom: 6px;
+            }
+
+            .bar {
+                height: 48px;
+                font-size: 14px;
+            }
+
+            .bar .time {
+                display: none;
+            }
+
+            .xfader {
+                width: 190px;
+                bottom: 70px;
+            }
+
+            .hint {
+                bottom: 136px;
+                font-size: 12px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .xfader.nudge .xfader-knob {
+                animation: none;
+            }
+
+            .scene {
+                transition-duration: 0.01s;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="wordmark">AB/noCD<sup>®</sup></div>
+        <div class="collections" id="collections" role="tablist" aria-label="Collections"></div>
+    </nav>
+
+    <main class="stage" id="stage">
+        <div class="scene" id="scene">
+            <img id="backdrop" alt="">
+            <svg id="hardware" viewBox="0 0 1600 900" aria-hidden="true"></svg>
+        </div>
+
+        <!-- About this song -->
+        <section class="panel panel-left about" id="aboutPanel">
+            <button class="panel-head" id="aboutToggle" aria-expanded="false" aria-controls="aboutText">
+                <span>About this song</span>
+                <svg class="chev" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+            </button>
+            <div class="about-body">
+                <div class="about-kind" id="aboutKind"></div>
+                <div class="about-map" id="aboutMap" hidden></div>
+                <div class="about-text" id="aboutText" tabindex="0"></div>
+            </div>
+        </section>
+
+        <!-- Song picker -->
+        <section class="panel panel-right" id="pickerPanel">
+            <button class="panel-head" id="pickerToggle" aria-expanded="false" aria-controls="pickerList">
+                <span id="pickerName">Collection</span>
+                <svg class="chev" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" fill="none" stroke="#fff" stroke-width="1.3"/></svg>
+            </button>
+            <div class="panel-song">
+                <div class="cover" id="pickerCover"></div>
+                <div class="song-meta">
+                    <div class="song-title" id="pickerTitle">–</div>
+                    <div class="song-sub" id="pickerSub"></div>
+                </div>
+            </div>
+            <div class="picker-list" id="pickerList"></div>
+            <div class="panel-foot picker-foot">
+                <button class="step" id="prevSong" aria-label="Previous song">
+                    <svg viewBox="0 0 12 12" width="12" height="12"><path d="M2 1v10M10 1.5L4 6l6 4.5z" fill="none" stroke="#fff" stroke-width="1.1"/></svg>
+                </button>
+                <button class="step" id="nextSong" aria-label="Next song">
+                    <svg viewBox="0 0 12 12" width="12" height="12"><path d="M10 1v10M2 1.5L8 6l-6 4.5z" fill="none" stroke="#fff" stroke-width="1.1"/></svg>
+                </button>
+                <button class="share-link" id="shareSong" type="button" aria-label="Share this song">
+                    <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M6 1v7M3.2 3.6L6 1l2.8 2.6M2 6.5V11h8V6.5" fill="none" stroke="currentColor" stroke-width="1.1"/></svg><span>Share</span>
+                </button>
+                <div class="dots" id="dots" aria-hidden="true"></div>
+            </div>
+        </section>
+
+        <div class="hint" id="hint" aria-live="polite"></div>
+
+        <div class="xfader" id="xfader">
+            <div class="xfader-row" id="xfaderRow" role="slider" tabindex="0" aria-label="Switch between A and B" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0.5" aria-valuetext="Nothing playing">
+                <span>A</span>
+                <div class="xfader-track" id="xfaderTrack"><div class="xfader-knob" id="xfaderKnob"></div></div>
+                <span>B</span>
+            </div>
+        </div>
+
+        <div class="bars">
+            <button class="bar" id="barA" aria-pressed="false" aria-label="Play version A">
+                <span class="prog"><i id="progA"></i></span>
+                <svg class="state" id="stateA" viewBox="0 0 12 12"></svg>
+                <span>Play A</span>
+                <span class="time" id="timeA">0:00</span>
+            </button>
+            <button class="bar" id="barSelect" aria-label="Vote for A or B">
+                <span>Select</span>
+                <span class="sub" id="selectSub"></span>
+            </button>
+            <button class="bar" id="barB" aria-pressed="false" aria-label="Play version B">
+                <span class="prog"><i id="progB"></i></span>
+                <svg class="state" id="stateB" viewBox="0 0 12 12"></svg>
+                <span>Play B</span>
+                <span class="time" id="timeB">0:00</span>
+            </button>
+        </div>
+
+        <!-- Welcome -->
+        <div class="overlay open" id="welcome">
+            <form class="card" id="welcomeForm" autocomplete="on">
+                <div class="kicker">KŮA Listening Lab</div>
+                <div class="sent" id="welcomeSent"></div>
+                <h1 style="margin-top:8px">AB/<em>no</em>CD</h1>
+                <p>Every song here comes in two versions. Switch between A and B as often as you like – each one picks up where you left it. When you know which you'd keep, hit <b>Select</b> and vote.</p>
+                <button class="cta" type="submit">Enter the room</button>
+            </form>
+        </div>
+
+        <!-- Vote -->
+        <div class="overlay" id="vote" role="dialog" aria-modal="true" aria-labelledby="voteTitle">
+            <form class="card" id="voteForm">
+                <div class="kicker" id="voteKicker"></div>
+                <h2 id="voteTitle" style="margin-top:6px">Which did you prefer?</h2>
+                <div class="choices">
+                    <button type="button" class="choice" data-choice="A" aria-pressed="false"><b>A</b><small id="heardA"></small></button>
+                    <button type="button" class="choice" data-choice="B" aria-pressed="false"><b>B</b><small id="heardB"></small></button>
+                </div>
+                <label class="field" id="voteNameField" hidden>
+                    <span>Your first name</span>
+                    <input type="text" id="voteName" placeholder="First name" maxlength="40" autocomplete="given-name">
+                </label>
+                <label class="field">
+                    <span>Why? (optional)</span>
+                    <textarea id="voteNote" maxlength="600" placeholder="What tipped it?"></textarea>
+                </label>
+                <button class="cta" type="submit" id="voteSubmit" disabled>Submit vote</button>
+                <button class="cta ghost" type="button" id="voteCancel">Keep listening</button>
+            </form>
+            <div class="card" id="voteThanks" hidden>
+                <div class="kicker" id="thanksKicker"></div>
+                <h1 style="margin-top:8px;font-size:44px" id="thanksTitle">Thank you.</h1>
+                <p>Know someone with good ears? Send them this song – they'll hear it blind, just like you did.</p>
+                <button class="cta" type="button" id="thanksShare">Share this song</button>
+                <button class="cta ghost" type="button" id="thanksNext">Next song</button>
+            </div>
+        </div>
+
+        <!-- Collection complete -->
+        <div class="overlay" id="done">
+            <div class="card">
+                <div class="kicker">Collection complete</div>
+                <h1 style="margin-top:8px;font-size:44px">Thank you.</h1>
+                <p id="doneText"></p>
+                <button class="cta" type="button" id="doneShare">Share the collection</button>
+                <button class="cta ghost" type="button" id="doneNext">Next collection</button>
+                <button class="cta ghost" type="button" id="doneStay">Review my votes</button>
+            </div>
+        </div>
+
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </main>
+
+    <script>
+        // ---------------------------------------------------------------
+        // Configuration
+        // ---------------------------------------------------------------
+
+        // Seconds a listener must hear of each version before SELECT unlocks.
+        const MIN_LISTEN = 15;
+
+        const CONFIG = {
+            // Path to the wide AI render (16:9). null = use the built-in placeholder scene.
+            sceneImage: '/assets/scene-wide.jpg',
+            // Camera focal points and zoom, in scene units (1600 × 900).
+            views: {
+                wide: { x: 800, y: 470, z: 1 },
+                A: { x: 360, y: 528, z: 1.7 },
+                B: { x: 1240, y: 528, z: 1.7 }
+            },
+            // Live hardware layered over the render. Re-place these with ?calibrate.
+            overlays: {
+                recA: { x: 472, y: 566, r: 86, squash: 0.06 },
+                recB: { x: 1081, y: 566, r: 86, squash: 0.06 },
+                meterL: { x: 760, y: 611, len: 25, face: [730, 581, 60, 28] },
+                meterR: { x: 839, y: 611, len: 25, face: [808, 581, 62, 28] },
+                led: { x: 683, y: 577 }
+            }
+        };
+
+        // Collections come from /api/catalog, which the Studio (/studio) fills.
+        // Each holds up to 10 songs with two versions (v1 = file A, v2 = file B);
+        // listeners hear them in a random A/B order, fixed per listener.
+        // The demo collections below play when the catalog is empty, unreachable or ?demo is set;
+        // they synthesise their audio in the browser and never post votes.
+        const DEMO_TITLES = [
+            'Copper Light', 'Night Market', 'Slow Burn', 'Lusaka Rain', 'Blue Hour',
+            'Second Wind', 'Paper Moon', 'Low Tide', 'Glasshouse', 'Northbound',
+            'Red Earth', 'Afterimage', 'Small Hours', 'Heatwave', 'Kafue',
+            'Static', 'Undertow', 'Golden Hour', 'Open Road', 'Last Call'
+        ];
+
+        const DEMO_LYRICS = [
+            `Streetlights hum in a minor key\nEvery window a different song\nI keep the radio low for you\nIn case you call before too long\n\nHold on, hold on\nThe night is only half begun\nHold on, hold on\nWe'll find the morning, one by one\n\nCopper wire and a borrowed tune\nRunning circles round the room\nIf the record skips, let it play\nSome things sound better that way`,
+            `Rain on the tin roof, counting time\nYou said the river knows the way\nI wrote your name on the window glass\nAnd watched it slowly fade away\n\nSo let it pour, let it pour\nI've been here before\nSo let it pour, let it pour\nI don't mind anymore\n\nThe kettle sings and the power's out\nWe dance to what the thunder plays\nTwo versions of the same old night\nI'd live it either way`,
+            `Turn it up till the needle bends\nThis is the part where the story ends\nOr starts again, I can't decide\nTwo roads and I want both sides\n\nA or B, B or A\nTell me which one makes you stay\nA or B, B or A\nPlay it back another way\n\nDust on the sleeve and a crack in the sound\nSpin it slow, let it go around\nWhatever you choose I'll understand\nThe song was always in your hands`
+        ];
+
+        function demoCollection(id, name, offset) {
+            const songs = [];
+            for (let i = 0; i < 10; i++) {
+                const seed = offset + i + 1;
+                songs.push({
+                    id: `${id}-${String(i + 1).padStart(2, '0')}`,
+                    title: DEMO_TITLES[(offset + i) % DEMO_TITLES.length],
+                    artist: 'KŮA · demo',
+                    about: { kind: 'lyrics', text: DEMO_LYRICS[seed % DEMO_LYRICS.length] },
+                    v1: `demo:${seed}:1`,
+                    v2: `demo:${seed}:2`
+                });
+            }
+            return { id, name, demo: true, songs };
+        }
+
+        const DEMO_COLLECTIONS = [
+            demoCollection('vol01', 'Vol. 01', 0),
+            demoCollection('vol02', 'Vol. 02', 10)
+        ];
+
+        let COLLECTIONS = DEMO_COLLECTIONS;
+
+        async function loadCatalog() {
+            if (new URLSearchParams(location.search).has('demo')) return;
+            try {
+                const res = await fetch('/api/catalog', { cache: 'no-cache' });
+                if (!res.ok) return;
+                const { collections } = await res.json();
+                if (collections?.length) COLLECTIONS = collections;
+            } catch (e) {
+                // No API (e.g. a plain static server) – stay on the demo collections.
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Persistence
+        // ---------------------------------------------------------------
+
+        const STORE_KEY = 'abnocd:v1';
+
+        function loadStore() {
+            const empty = { name: '', flips: {}, pos: {}, heard: {}, switches: {}, votes: {}, outbox: [] };
+            try {
+                const raw = localStorage.getItem(STORE_KEY);
+                return raw ? Object.assign(empty, JSON.parse(raw)) : empty;
+            } catch (e) {
+                return empty;
+            }
+        }
+
+        let store = loadStore();
+        // Anonymous per-browser id, so a changed vote replaces the listener's earlier one.
+        if (!store.listenerId) store.listenerId = (crypto.randomUUID?.() || `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`).replace(/-/g, '');
+
+        function saveStore() {
+            try {
+                localStorage.setItem(STORE_KEY, JSON.stringify(store));
+            } catch (e) {
+                // Private mode or storage blocked – state lasts for this visit only.
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Helpers
+        // ---------------------------------------------------------------
+
+        const $ = (id) => document.getElementById(id);
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+        function esc(s) {
+            return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function fmt(sec) {
+            if (!isFinite(sec) || sec < 0) sec = 0;
+            const s = Math.floor(sec);
+            return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+        }
+
+        function mulberry(seed) {
+            let a = seed >>> 0;
+            return () => {
+                a = (a + 0x6D2B79F5) >>> 0;
+                let t = a;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        let toastTimer = 0;
+        function toast(msg) {
+            const el = $('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+        }
+
+        function coverStyle(s, idx) {
+            if (s.cover) return `background-image:url("${encodeURI(s.cover)}")`;
+            const h = (idx * 47 + 12) % 360;
+            return `background:linear-gradient(135deg,hsl(${h} 42% 40%),hsl(${(h + 55) % 360} 48% 20%))`;
+        }
+
+        // ---------------------------------------------------------------
+        // Placeholder scene (stands in for the AI render)
+        // ---------------------------------------------------------------
+
+        function placeholderSVG() {
+            const r = mulberry(7);
+            let pits = '';
+            for (let i = 0; i < 240; i++) {
+                const s = 0.6 + r() * 2.2;
+                pits += `<ellipse cx="${(r() * 1600).toFixed(1)}" cy="${(r() * 770).toFixed(1)}" rx="${s.toFixed(2)}" ry="${(s * (0.6 + r() * 0.6)).toFixed(2)}" fill="rgba(42,40,38,${(0.25 + r() * 0.4).toFixed(2)})"/>`;
+            }
+
+            const speaker = (x) => {
+                let slats = '';
+                for (let i = 0; i < 30; i++) slats += `<rect x="${10 + i * 5}" y="662" width="2.4" height="106" fill="#3d281b"/>`;
+                return `<g transform="translate(${x} 0)">
+                    <rect x="-10" y="764" width="190" height="16" fill="#000" opacity=".4" filter="url(#soft)"/>
+                    <rect x="10" y="430" width="170" height="350" fill="#000" opacity=".2" filter="url(#soft)"/>
+                    <rect x="0" y="420" width="170" height="355" fill="#3b2519"/>
+                    <rect x="0" y="420" width="4" height="355" fill="#4d3224"/>
+                    <rect x="10" y="430" width="150" height="225" fill="url(#fabric)"/>
+                    <circle cx="85" cy="535" r="63" fill="#0b0b0b"/>
+                    <circle cx="85" cy="535" r="58" fill="#1c1c1c"/>
+                    <circle cx="85" cy="535" r="52" fill="url(#cone)"/>
+                    <circle cx="85" cy="535" r="44" fill="none" stroke="rgba(255,255,255,.05)"/>
+                    <circle cx="85" cy="535" r="34" fill="none" stroke="rgba(255,255,255,.05)"/>
+                    <circle cx="85" cy="535" r="15" fill="#151515" stroke="#2c2c2c"/>
+                    <ellipse cx="76" cy="526" rx="7" ry="4" fill="#fff" opacity=".07"/>
+                    <rect x="10" y="662" width="150" height="106" fill="#26170f"/>
+                    ${slats}
+                </g>`;
+            };
+
+            const plinth = (x, contents) => `<g transform="translate(${x} 0)">
+                    <rect x="-6" y="764" width="192" height="14" fill="#000" opacity=".35" filter="url(#soft)"/>
+                    <rect x="0" y="612" width="180" height="162" fill="#b3b1ac"/>
+                    <rect x="0" y="612" width="180" height="5" fill="#c9c7c2"/>
+                    <rect x="12" y="630" width="156" height="132" fill="#7e7c78"/>
+                    <rect x="12" y="630" width="156" height="12" fill="#000" opacity=".2"/>
+                    ${contents}
+                    <rect x="8" y="597" width="164" height="15" fill="#1d1d1d"/>
+                    <rect x="8" y="593" width="164" height="5" fill="#2c2c2c"/>
+                    <ellipse cx="82" cy="590" rx="62" ry="8" fill="#0d0d0d"/>
+                    <rect x="151" y="568" width="6" height="20" fill="#2d2d2d"/>
+                    <circle cx="154" cy="568" r="5" fill="#444"/>
+                    <line x1="154" y1="570" x2="122" y2="586" stroke="#d0d0d0" stroke-width="2"/>
+                    <rect x="117" y="584" width="9" height="4" fill="#111"/>
+                    <circle cx="20" cy="604" r="2" fill="#555"/>
+                </g>`;
+
+            const meter = (px, py, fx) => {
+                let ticks = '';
+                for (let a = -46; a <= 46; a += 11.5) {
+                    const rad = a * Math.PI / 180;
+                    const x1 = px + 30 * Math.sin(rad), y1 = py - 30 * Math.cos(rad);
+                    const x2 = px + 34 * Math.sin(rad), y2 = py - 34 * Math.cos(rad);
+                    ticks += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${a > 20 ? '#b8562f' : '#333'}" stroke-width=".8"/>`;
+                }
+                const arc = (a0, a1, rr) => {
+                    const p = (a) => [px + rr * Math.sin(a * Math.PI / 180), py - rr * Math.cos(a * Math.PI / 180)].map((v) => v.toFixed(1)).join(' ');
+                    return `M${p(a0)} A${rr} ${rr} 0 0 1 ${p(a1)}`;
+                };
+                return `<rect x="${fx}" y="556" width="92" height="46" fill="url(#meterFace)" stroke="#1d1d1f" stroke-width="2"/>
+                    <path d="${arc(-46, 20, 30)}" fill="none" stroke="#333" stroke-width=".8"/>
+                    <path d="${arc(20, 46, 30)}" fill="none" stroke="#b8562f" stroke-width="2"/>
+                    ${ticks}
+                    <text x="${px}" y="590" font-size="6" text-anchor="middle" fill="#444" font-family="Helvetica,Arial,sans-serif">VU</text>`;
+            };
+
+            let lowerKnobs = '';
+            ['INPUT', 'BASS', 'TREBLE', 'BALANCE', 'VOLUME'].forEach((label, i) => {
+                const x = 694 + i * 53;
+                lowerKnobs += `<circle cx="${x}" cy="733" r="14" fill="#000" opacity=".25" filter="url(#soft)"/>
+                    <circle cx="${x}" cy="731" r="13" fill="url(#knob)"/>
+                    <circle cx="${x}" cy="731" r="13" fill="none" stroke="rgba(0,0,0,.35)"/>
+                    <line x1="${x}" y1="720" x2="${x}" y2="725" stroke="#333" stroke-width="1.4"/>
+                    <text x="${x}" y="758" font-size="5.5" text-anchor="middle" fill="#3a3a3a" font-family="Helvetica,Arial,sans-serif">${label}</text>`;
+            });
+
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+                <defs>
+                    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#878581"/><stop offset=".55" stop-color="#a19f9a"/><stop offset="1" stop-color="#8f8d88"/>
+                    </linearGradient>
+                    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#7c7a75"/><stop offset="1" stop-color="#55534f"/>
+                    </linearGradient>
+                    <filter id="mottle" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency=".0045 .008" numOctaves="4" seed="3"/>
+                        <feColorMatrix values="0 0 0 0 .18  0 0 0 0 .17  0 0 0 0 .16  1.7 0 0 0 -.62"/>
+                    </filter>
+                    <filter id="grain" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="11"/>
+                        <feColorMatrix values="0 0 0 0 .1  0 0 0 0 .1  0 0 0 0 .1  1.4 0 0 0 -.55"/>
+                    </filter>
+                    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="7"/></filter>
+                    <filter id="halo" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
+                    <radialGradient id="glow" cx=".5" cy=".55" r=".5">
+                        <stop offset="0" stop-color="#fff7ea" stop-opacity=".8"/>
+                        <stop offset=".45" stop-color="#fff2e0" stop-opacity=".3"/>
+                        <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+                    </radialGradient>
+                    <radialGradient id="vignette" cx=".5" cy=".45" r=".75">
+                        <stop offset=".55" stop-color="#000" stop-opacity="0"/>
+                        <stop offset="1" stop-color="#000" stop-opacity=".38"/>
+                    </radialGradient>
+                    <radialGradient id="disc" cx=".45" cy=".42" r=".6">
+                        <stop offset="0" stop-color="#62241e"/><stop offset="1" stop-color="#3f150f"/>
+                    </radialGradient>
+                    <radialGradient id="cone" cx=".45" cy=".42" r=".6">
+                        <stop offset="0" stop-color="#3b3b3b"/><stop offset="1" stop-color="#0c0c0c"/>
+                    </radialGradient>
+                    <radialGradient id="knob" cx=".38" cy=".32" r=".75">
+                        <stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#cacaca"/><stop offset="1" stop-color="#6b6b6b"/>
+                    </radialGradient>
+                    <radialGradient id="meterFace" cx=".5" cy=".9" r=".9">
+                        <stop offset="0" stop-color="#f3ecd2"/><stop offset="1" stop-color="#d9d0ae"/>
+                    </radialGradient>
+                    <linearGradient id="steelDark" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#5d5e61"/><stop offset=".5" stop-color="#323336"/><stop offset="1" stop-color="#47484c"/>
+                    </linearGradient>
+                    <linearGradient id="steelLight" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#cfd1d4"/><stop offset=".55" stop-color="#9c9ea1"/><stop offset="1" stop-color="#b6b8bb"/>
+                    </linearGradient>
+                    <pattern id="fabric" width="3" height="3" patternUnits="userSpaceOnUse">
+                        <rect width="3" height="3" fill="#57231d"/><rect width="1.5" height="1.5" fill="#62291f"/>
+                    </pattern>
+                </defs>
+
+                <rect width="1600" height="900" fill="url(#wall)"/>
+                <rect width="1600" height="780" filter="url(#mottle)" opacity=".55"/>
+                <rect width="1600" height="780" filter="url(#grain)" opacity=".35"/>
+                ${pits}
+                <line x1="0" y1="300" x2="1600" y2="300" stroke="rgba(0,0,0,.05)"/>
+                <line x1="0" y1="600" x2="1600" y2="600" stroke="rgba(0,0,0,.05)"/>
+
+                <ellipse cx="340" cy="360" rx="250" ry="360" fill="url(#glow)"/>
+                <ellipse cx="1260" cy="360" rx="250" ry="360" fill="url(#glow)"/>
+
+                <circle cx="800" cy="255" r="190" fill="#fff6ec" opacity=".35" filter="url(#halo)"/>
+                <circle cx="800" cy="255" r="186" fill="url(#disc)"/>
+                <circle cx="800" cy="255" r="186" fill="none" stroke="rgba(0,0,0,.25)" stroke-width="6"/>
+
+                <rect y="772" width="1600" height="128" fill="url(#floor)"/>
+                <rect y="772" width="1600" height="2" fill="rgba(0,0,0,.25)"/>
+
+                ${speaker(255)}
+                ${speaker(1175)}
+
+                ${plinth(470, `<rect x="24" y="742" width="130" height="6" fill="#111"/>
+                    <rect x="26" y="748" width="128" height="5" fill="#e8e6e0"/>
+                    <rect x="22" y="754" width="134" height="8" fill="#222"/>`)}
+                ${plinth(958, `<rect x="24" y="714" width="132" height="22" fill="#7a2b22"/>
+                    <text x="34" y="729" font-size="12" font-weight="700" fill="#f3ece4" font-family="Helvetica,Arial,sans-serif">AB/noCD®</text>
+                    <rect x="20" y="736" width="140" height="26" fill="#e9e6df"/>
+                    <text x="34" y="754" font-size="13" font-weight="700" fill="#2a2a2a" font-family="Helvetica,Arial,sans-serif">KŮA Vol. 01</text>`)}
+
+                <rect x="664" y="548" width="282" height="232" fill="#000" opacity=".22" filter="url(#soft)"/>
+                <rect x="660" y="540" width="280" height="114" rx="3" fill="url(#steelDark)"/>
+                <rect x="664" y="544" width="272" height="106" rx="2" fill="none" stroke="rgba(255,255,255,.12)"/>
+                ${meter(746, 600, 700)}
+                ${meter(854, 600, 808)}
+                <circle cx="683" cy="602" r="11" fill="url(#knob)"/>
+                <circle cx="917" cy="602" r="11" fill="url(#knob)"/>
+                <circle cx="672" cy="549" r="2.6" fill="#4a1714"/>
+                <text x="800" y="634" font-size="13" font-weight="700" letter-spacing="2" text-anchor="middle" fill="rgba(255,255,255,.38)" font-family="Helvetica,Arial,sans-serif">AB/noCD</text>
+                <rect x="772" y="639" width="56" height="1" fill="#b87333" opacity=".8"/>
+
+                <rect x="660" y="656" width="280" height="2" fill="#b87333"/>
+                <rect x="660" y="658" width="280" height="114" rx="3" fill="url(#steelLight)"/>
+                <line x1="712" y1="690" x2="888" y2="690" stroke="#4d4d4d" stroke-width="3"/>
+                <rect x="796" y="683" width="9" height="14" fill="#e6e6e6" stroke="#666" stroke-width=".6"/>
+                <circle cx="683" cy="690" r="5" fill="url(#knob)"/>
+                <circle cx="917" cy="690" r="5" fill="url(#knob)"/>
+                ${lowerKnobs}
+
+                <rect width="1600" height="900" fill="url(#vignette)"/>
+            </svg>`;
+        }
+
+        async function buildBackdrop() {
+            const img = $('backdrop');
+            if (CONFIG.sceneImage) {
+                img.src = CONFIG.sceneImage;
+                return;
+            }
+            const svgUrl = URL.createObjectURL(new Blob([placeholderSVG()], { type: 'image/svg+xml' }));
+            try {
+                // Rasterise once so camera moves don't re-run the SVG filters.
+                const src = new Image();
+                src.src = svgUrl;
+                await src.decode();
+                const canvas = document.createElement('canvas');
+                canvas.width = 3200;
+                canvas.height = 1800;
+                canvas.getContext('2d').drawImage(src, 0, 0, 3200, 1800);
+                const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.9));
+                img.src = blob ? URL.createObjectURL(blob) : svgUrl;
+            } catch (e) {
+                img.src = svgUrl;
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Live hardware overlay: records, VU needles, power LED
+        // ---------------------------------------------------------------
+
+        const hw = {};
+
+        function buildHardware() {
+            const o = CONFIG.overlays;
+            const record = (id, c) => {
+                const L = c.r * 0.38;
+                let grooves = '';
+                for (let rr = L + 3; rr < c.r - 1; rr += 2.6) grooves += `<circle r="${rr.toFixed(1)}" fill="none" stroke="rgba(255,255,255,.06)" stroke-width=".7"/>`;
+                return `<rect x="${c.x - c.r}" y="${c.y}" width="${2 * c.r}" height="2.6" fill="#050505"/>
+                    <g transform="translate(${c.x} ${c.y}) scale(1 ${c.squash})">
+                        <g id="${id}">
+                            <circle r="${c.r}" fill="#0c0c0c"/>
+                            ${grooves}
+                            <path d="M0 ${-L} A${L} ${L} 0 0 1 0 ${L} Z" fill="#d8483f"/>
+                            <path d="M0 ${L} A${L} ${L} 0 0 1 0 ${-L} Z" fill="#3b5bd6"/>
+                            <rect x="-2.5" y="${-L + 3}" width="5" height="9" fill="#f4efe6"/>
+                            <circle r="2.4" fill="#d9d9d9"/>
+                        </g>
+                        <path d="M${-c.r * 0.8} ${-c.r * 0.45} A${c.r} ${c.r} 0 0 1 ${c.r * 0.2} ${-c.r * 0.95}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="6"/>
+                    </g>`;
+            };
+            const needle = (id, m) => {
+                const [fx, fy, fw, fh] = m.face;
+                return `<clipPath id="clip-${id}"><rect x="${fx + 1}" y="${fy + 1}" width="${fw - 2}" height="${fh - 2}"/></clipPath>
+                    <g clip-path="url(#clip-${id})">
+                        <g id="${id}">
+                            <line x1="${m.x + 1.2}" y1="${m.y}" x2="${m.x + 1.2}" y2="${m.y - m.len}" stroke="#000" stroke-opacity=".18" stroke-width="1.3"/>
+                            <line x1="${m.x}" y1="${m.y}" x2="${m.x}" y2="${m.y - m.len}" stroke="#2e1d12" stroke-width="1.1" stroke-linecap="round"/>
+                        </g>
+                        <circle cx="${m.x}" cy="${m.y + 1}" r="4" fill="#222"/>
+                    </g>`;
+            };
+            $('hardware').innerHTML = `
+                <defs>
+                    <radialGradient id="ledGlow"><stop offset="0" stop-color="#ff4a3a" stop-opacity=".8"/><stop offset="1" stop-color="#ff4a3a" stop-opacity="0"/></radialGradient>
+                </defs>
+                ${record('recA', o.recA)}
+                ${record('recB', o.recB)}
+                ${needle('needleL', o.meterL)}
+                ${needle('needleR', o.meterR)}
+                <g id="led" opacity=".2">
+                    <circle cx="${o.led.x}" cy="${o.led.y}" r="10" fill="url(#ledGlow)"/>
+                    <circle cx="${o.led.x}" cy="${o.led.y}" r="2.6" fill="#ff3b2f"/>
+                </g>
+                <g id="calHandles"></g>`;
+            hw.recA = $('recA');
+            hw.recB = $('recB');
+            hw.needleL = $('needleL');
+            hw.needleR = $('needleR');
+            hw.led = $('led');
+        }
+
+        // ---------------------------------------------------------------
+        // Camera
+        // ---------------------------------------------------------------
+
+        let view = 'wide';
+        let cam = { tx: 0, ty: 0, S: 1 };
+
+        function applyCamera(animate = true) {
+            const stage = $('stage');
+            const W = stage.clientWidth, H = stage.clientHeight;
+            const cover = Math.max(W / 1600, H / 900);
+            const v = CONFIG.views[view];
+            // Portrait screens are already tightly cropped; push in less.
+            const z = W < H ? (view === 'wide' ? 1 : 1.25) : v.z;
+            const S = cover * z;
+            const tx = clamp(W / 2 - v.x * S, W - 1600 * S, 0);
+            const ty = clamp(H / 2 - v.y * S, H - 900 * S, 0);
+            const scene = $('scene');
+            scene.style.transition = animate ? '' : 'none';
+            scene.style.transform = `translate(${tx}px, ${ty}px) scale(${S})`;
+            cam = { tx, ty, S };
+        }
+
+        // ---------------------------------------------------------------
+        // Demo audio – two arrangements of the same song, synthesised offline
+        // ---------------------------------------------------------------
+
+        const demoCache = new Map();
+
+        function resolveUrl(url) {
+            if (!url.startsWith('demo:')) return Promise.resolve(url);
+            if (!demoCache.has(url)) demoCache.set(url, renderDemo(url));
+            return demoCache.get(url);
+        }
+
+        async function renderDemo(url) {
+            const [, seedStr, verStr] = url.split(':');
+            const seed = Number(seedStr), alt = verStr === '2';
+            const sr = 22050, dur = 40;
+            const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+            const ctx = new OAC(2, sr * dur, sr);
+
+            const master = ctx.createGain();
+            master.gain.setValueAtTime(0, 0);
+            master.gain.linearRampToValueAtTime(0.7, 0.05);
+            master.gain.setValueAtTime(0.7, dur - 2.5);
+            master.gain.linearRampToValueAtTime(0, dur);
+            const comp = ctx.createDynamicsCompressor();
+            master.connect(comp);
+            comp.connect(ctx.destination);
+
+            const noise = ctx.createBuffer(1, sr, sr);
+            const nd = noise.getChannelData(0);
+            for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+
+            const pan = (p) => {
+                const n = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+                if (n.pan) n.pan.value = p;
+                n.connect(master);
+                return n;
+            };
+
+            // Shared harmony and melody; arrangement differs per version.
+            const rng = mulberry(seed * 97 + 13);
+            const bpm = 78 + (seed * 11) % 34;
+            const beat = 60 / bpm;
+            const bars = Math.floor((dur - 1) / (beat * 4));
+            const root = 45 + (seed * 5) % 12;
+            const minor = seed % 3 !== 0;
+            const scale = minor ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11];
+            const progs = [[0, 5, 3, 4], [0, 3, 5, 4], [5, 3, 0, 4], [0, 4, 5, 3]];
+            const prog = progs[seed % progs.length];
+            const deg = (d) => scale[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7);
+            const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+            const tone = (type, freq, t, len, gain, dest, cutoff) => {
+                const o = ctx.createOscillator();
+                o.type = type;
+                o.frequency.value = freq;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0, t);
+                g.gain.linearRampToValueAtTime(gain, t + Math.min(0.25, len * 0.3));
+                g.gain.setValueAtTime(gain, t + len * 0.7);
+                g.gain.linearRampToValueAtTime(0, t + len);
+                let node = o;
+                if (cutoff) {
+                    const f = ctx.createBiquadFilter();
+                    f.type = 'lowpass';
+                    f.frequency.value = cutoff;
+                    o.connect(f);
+                    node = f;
+                }
+                node.connect(g);
+                g.connect(dest);
+                o.start(t);
+                o.stop(t + len + 0.05);
+            };
+
+            const hit = (t, type, gain, dest) => {
+                if (type === 'kick') {
+                    const o = ctx.createOscillator();
+                    o.frequency.setValueAtTime(130, t);
+                    o.frequency.exponentialRampToValueAtTime(42, t + 0.13);
+                    const g = ctx.createGain();
+                    g.gain.setValueAtTime(gain, t);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+                    o.connect(g);
+                    g.connect(dest);
+                    o.start(t);
+                    o.stop(t + 0.35);
+                    return;
+                }
+                const s = ctx.createBufferSource();
+                s.buffer = noise;
+                const f = ctx.createBiquadFilter();
+                f.type = type === 'snare' ? 'bandpass' : 'highpass';
+                f.frequency.value = type === 'snare' ? 1800 : 7000;
+                const g = ctx.createGain();
+                const len = type === 'snare' ? 0.18 : 0.045;
+                g.gain.setValueAtTime(gain, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + len);
+                s.connect(f);
+                f.connect(g);
+                g.connect(dest);
+                s.start(t, rng() * 0.5);
+                s.stop(t + len + 0.02);
+            };
+
+            const padL = pan(alt ? -0.25 : -0.6), padR = pan(alt ? 0.25 : 0.6), mid = pan(0);
+            const hats = pan(alt ? -0.35 : 0.35), lead = pan(alt ? 0.15 : -0.15);
+            const melody = [];
+            for (let b = 0; b < bars; b++) {
+                const notes = [];
+                for (let n = 0; n < 4; n++) notes.push(prog[b % 4] + [0, 2, 4, 7, 4, 2][Math.floor(rng() * 6)]);
+                melody.push(notes);
+            }
+
+            for (let b = 0; b < bars; b++) {
+                const t0 = 0.5 + b * beat * 4;
+                const d = prog[b % 4];
+                const chord = [0, 2, 4].map((k) => root + 12 + deg(d + k));
+                chord.forEach((m, i) => tone(alt ? 'triangle' : 'sawtooth', hz(m), t0, beat * 4, alt ? 0.06 : 0.035, [padL, mid, padR][i], alt ? 900 : 2200));
+
+                const bassM = root + deg(d) - (alt ? 12 : 0);
+                if (alt) {
+                    tone('sine', hz(bassM), t0, beat * 2, 0.32, mid);
+                    tone('sine', hz(bassM + 7), t0 + beat * 2, beat * 2, 0.28, mid);
+                } else {
+                    [1, 0, 1, 1, 0, 1, 0, 1].forEach((on, i) => on && tone('triangle', hz(bassM), t0 + i * beat / 2, beat * 0.45, 0.22, mid));
+                }
+
+                for (let q = 0; q < 4; q++) {
+                    const t = t0 + q * beat;
+                    if (alt) {
+                        if (q === 0) hit(t, 'kick', 0.9, mid);
+                        if (q === 1) hit(t + beat / 2, 'kick', 0.6, mid);
+                        if (q === 2) hit(t, 'snare', 0.35, mid);
+                        hit(t, 'hat', 0.08, hats);
+                        hit(t + beat * 0.62, 'hat', 0.05, hats);
+                    } else {
+                        if (q === 0 || q === 2) hit(t, 'kick', 0.85, mid);
+                        if (q === 2) hit(t + beat / 2, 'kick', 0.5, mid);
+                        if (q === 1 || q === 3) hit(t, 'snare', 0.32, mid);
+                        for (let s = 0; s < 4; s++) hit(t + s * beat / 4, 'hat', s % 2 ? 0.035 : 0.07, hats);
+                    }
+                }
+
+                if (!alt || b >= bars / 2) {
+                    melody[b].forEach((m, i) => tone(alt ? 'sine' : 'square', hz(root + 24 + deg(m) - (alt ? 12 : 0)), t0 + i * beat, beat * 0.9, alt ? 0.09 : 0.03, lead, 2600));
+                }
+            }
+
+            const buf = await ctx.startRendering();
+            return URL.createObjectURL(wavBlob(buf));
+        }
+
+        function wavBlob(ab) {
+            const ch = ab.numberOfChannels, len = ab.length, sr = ab.sampleRate;
+            const dv = new DataView(new ArrayBuffer(44 + len * ch * 2));
+            const w = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+            w(0, 'RIFF'); dv.setUint32(4, 36 + len * ch * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+            dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, ch, true);
+            dv.setUint32(24, sr, true); dv.setUint32(28, sr * ch * 2, true); dv.setUint16(32, ch * 2, true);
+            dv.setUint16(34, 16, true); w(36, 'data'); dv.setUint32(40, len * ch * 2, true);
+            const data = [];
+            for (let c = 0; c < ch; c++) data.push(ab.getChannelData(c));
+            let o = 44;
+            for (let i = 0; i < len; i++) {
+                for (let c = 0; c < ch; c++) {
+                    const s = clamp(data[c][i], -1, 1);
+                    dv.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+                    o += 2;
+                }
+            }
+            return new Blob([dv], { type: 'audio/wav' });
+        }
+
+        // ---------------------------------------------------------------
+        // Decks
+        // ---------------------------------------------------------------
+
+        let actx = null;
+
+        function audioCtx() {
+            if (!actx) {
+                const C = window.AudioContext || window.webkitAudioContext;
+                if (C) actx = new C();
+            }
+            if (actx && actx.state === 'suspended') actx.resume();
+            return actx;
+        }
+
+        function makeDeck(key) {
+            return { key, el: null, version: null, analysable: false, src: null, gain: null, an: null, buf: null, vol: 1, volTarget: 1, pauseWhenSilent: false, angle: key === 'A' ? 40 : 200, speed: 0 };
+        }
+
+        const decks = { A: makeDeck('A'), B: makeDeck('B') };
+        let collection = null, songIdx = 0, song = null, live = null, loading = false, loadToken = 0;
+        const meters = { L: 0, R: 0 };
+
+        function isPlaying(d) {
+            return !!(d.el && !d.el.paused && !d.pauseWhenSilent);
+        }
+
+        function disposeDeck(d) {
+            if (d.el) {
+                d.el.pause();
+                d.el.removeAttribute('src');
+                d.el.load();
+            }
+            if (d.src) {
+                try { d.src.disconnect(); } catch (e) { /* already disconnected */ }
+            }
+            Object.assign(d, { el: null, version: null, posKey: null, analysable: false, src: null, gain: null, an: null, buf: null, vol: 1, volTarget: 1, pauseWhenSilent: false });
+        }
+
+        function attachDeck(d, url, version, songId, rev) {
+            disposeDeck(d);
+            const el = new Audio();
+            el.preload = 'auto';
+            d.el = el;
+            d.version = version;
+            // Replacing a version in the Studio changes its rev, so stale positions are ignored.
+            d.posKey = rev ? `${version}@${rev}` : version;
+            const sameOrigin = url.startsWith('blob:') || new URL(url, location.href).origin === location.origin;
+            let retried = false;
+            d.analysable = sameOrigin;
+            // Ask for CORS so the analyser can read the signal; fall back to plain playback if refused.
+            if (!sameOrigin) el.crossOrigin = 'anonymous';
+            el.addEventListener('error', () => {
+                if (d.el !== el) return;
+                if (!sameOrigin && !retried) {
+                    retried = true;
+                    el.removeAttribute('crossorigin');
+                    el.src = url;
+                    el.load();
+                } else {
+                    toast(`Couldn't load version ${d.key}.`);
+                }
+            });
+            el.addEventListener('loadedmetadata', () => {
+                if (d.el !== el) return;
+                d.analysable = sameOrigin || !retried;
+                if (!el.paused) wire(d);
+                const p = store.pos[songId]?.[d.posKey];
+                if (p && p < el.duration - 1) el.currentTime = p;
+                renderTimes();
+            });
+            el.addEventListener('ended', () => {
+                savePositions();
+                updateUI();
+            });
+            el.src = url;
+        }
+
+        function wire(d) {
+            if (d.gain || !d.analysable) return;
+            const ctx = audioCtx();
+            if (!ctx) return;
+            try {
+                const src = ctx.createMediaElementSource(d.el);
+                const gain = ctx.createGain();
+                src.connect(gain);
+                gain.connect(ctx.destination);
+                const split = ctx.createChannelSplitter(2);
+                gain.connect(split);
+                const an = [ctx.createAnalyser(), ctx.createAnalyser()];
+                an.forEach((a, i) => {
+                    a.fftSize = 1024;
+                    split.connect(a, i);
+                });
+                Object.assign(d, { src, gain, an, buf: new Float32Array(1024) });
+                d.el.volume = 1;
+            } catch (e) {
+                d.analysable = false;
+            }
+        }
+
+        function applyVol(d) {
+            if (d.gain) d.gain.gain.value = d.vol;
+            else if (d.el) d.el.volume = d.vol;
+        }
+
+        function startDeck(d) {
+            wire(d);
+            d.vol = 0;
+            d.volTarget = 1;
+            d.pauseWhenSilent = false;
+            applyVol(d);
+            const p = d.el.play();
+            if (p) p.catch((err) => {
+                if (err.name !== 'AbortError') toast('Playback was blocked – tap again.');
+                updateUI();
+            });
+        }
+
+        function fadeOut(d) {
+            if (!d.el || d.el.paused) return;
+            d.volTarget = 0;
+            d.pauseWhenSilent = true;
+        }
+
+        function pressDeck(key) {
+            if (!song || loading || !decks[key].el) return;
+            audioCtx();
+            closeMenus();
+            const d = decks[key];
+            if (live === key) {
+                if (isPlaying(d)) fadeOut(d);
+                else startDeck(d);
+            } else {
+                if (live) {
+                    fadeOut(decks[live]);
+                    store.switches[song.id] = (store.switches[song.id] || 0) + 1;
+                }
+                live = key;
+                view = key;
+                applyCamera();
+                startDeck(d);
+            }
+            savePositions();
+            updateUI();
+        }
+
+        function savePositions() {
+            if (!song) return;
+            const pos = store.pos[song.id] || (store.pos[song.id] = {});
+            for (const d of Object.values(decks)) {
+                if (d.el && d.posKey && isFinite(d.el.currentTime)) pos[d.posKey] = d.el.currentTime;
+            }
+            saveStore();
+        }
+
+        function heard(d) {
+            return (song && d.version && store.heard[song.id]?.[d.version]) || 0;
+        }
+
+        function remaining(key) {
+            const d = decks[key];
+            const dur = d.el?.duration;
+            const need = isFinite(dur) && dur > 0 ? Math.min(MIN_LISTEN, dur * 0.8) : MIN_LISTEN;
+            return Math.max(0, need - heard(d));
+        }
+
+        function flipFor(id) {
+            if (!(id in store.flips)) {
+                store.flips[id] = Math.random() < 0.5;
+                saveStore();
+            }
+            return store.flips[id];
+        }
+
+        // ---------------------------------------------------------------
+        // Song & collection selection
+        // ---------------------------------------------------------------
+
+        async function selectSong(idx) {
+            const token = ++loadToken;
+            savePositions();
+            Object.values(decks).forEach(disposeDeck);
+            songIdx = clamp(idx, 0, collection.songs.length - 1);
+            song = collection.songs[songIdx];
+            updateAddress();
+            live = null;
+            view = 'wide';
+            loading = true;
+            applyCamera();
+            closeMenus();
+            updateUI();
+
+            const flip = flipFor(song.id);
+            const versions = { A: flip ? 'v2' : 'v1', B: flip ? 'v1' : 'v2' };
+            try {
+                const urls = await Promise.all(['A', 'B'].map((k) => resolveUrl(song[versions[k]])));
+                if (token !== loadToken) return;
+                attachDeck(decks.A, urls[0], versions.A, song.id, song.revs?.[versions.A]);
+                attachDeck(decks.B, urls[1], versions.B, song.id, song.revs?.[versions.B]);
+            } catch (e) {
+                if (token === loadToken) toast('Could not load this song.');
+            }
+            if (token !== loadToken) return;
+            loading = false;
+            updateUI();
+        }
+
+        function selectCollection(ci) {
+            collection = COLLECTIONS[ci];
+            const next = collection.songs.findIndex((s) => !store.votes[s.id]);
+            selectSong(next === -1 ? 0 : next);
+        }
+
+        // ---------------------------------------------------------------
+        // Links: /<collection> and /<collection>/<song>
+        // ---------------------------------------------------------------
+
+        function songSlug(c, s) {
+            return s.id.startsWith(`${c.id}-`) ? s.id.slice(c.id.length + 1) : s.id;
+        }
+
+        function linkFor(c, s) {
+            const demo = new URLSearchParams(location.search).has('demo') ? '?demo' : '';
+            return `${location.origin}/${encodeURIComponent(c.id)}${s ? `/${encodeURIComponent(songSlug(c, s))}` : ''}${demo}`;
+        }
+
+        // Where the address bar pointed when the page loaded: { ci, si, missing }.
+        function parseRoute() {
+            const [c, s] = location.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+            if (!c || c.endsWith('.html')) return null;
+            const ci = COLLECTIONS.findIndex((x) => x.id === c);
+            if (ci === -1) return { ci: -1, si: -1, missing: true };
+            const si = s ? COLLECTIONS[ci].songs.findIndex((x) => x.id === `${c}-${s}`) : -1;
+            return { ci, si, missing: !!s && si === -1 };
+        }
+
+        // Keep the address bar on the current song so it can be copied and shared.
+        function updateAddress() {
+            if (!/^https?:$/.test(location.protocol)) return;
+            const url = new URL(linkFor(collection, song));
+            if (url.pathname !== location.pathname) history.replaceState(null, '', url.pathname + url.search);
+        }
+
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.cssText = 'position:fixed;opacity:0';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                ta.remove();
+                return ok;
+            }
+        }
+
+        // Share a song or the whole collection. Phones get the native share sheet;
+        // elsewhere the link is copied. The text never reveals anyone's vote.
+        async function share(kind) {
+            if (!collection) return;
+            const s = kind === 'song' ? song : null;
+            const url = linkFor(collection, s);
+            const title = `${s ? s.title : collection.name} – AB/noCD`;
+            const text = s
+                ? `Two versions of “${s.title}” by ${s.artist || 'KŮA'}. Listen to A and B, then pick the one that should be released.`
+                : `${collection.name} by KŮA: two versions of every song. You pick.`;
+            if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+                try {
+                    await navigator.share({ title, text, url });
+                    return;
+                } catch (e) {
+                    if (e.name === 'AbortError') return;
+                }
+            }
+            toast(await copyText(url) ? `Link copied – ${url.replace(/^https?:\/\//, '')}` : url);
+        }
+
+        function votedCount(c) {
+            return c.songs.filter((s) => store.votes[s.id]).length;
+        }
+
+        // ---------------------------------------------------------------
+        // Voting
+        // ---------------------------------------------------------------
+
+        let pendingChoice = null;
+
+        function openVote() {
+            if (!song || loading) return;
+            const ra = remaining('A'), rb = remaining('B');
+            if (ra > 0 || rb > 0) {
+                const parts = [];
+                if (ra > 0) parts.push(`A needs ${Math.ceil(ra)}s more`);
+                if (rb > 0) parts.push(`B needs ${Math.ceil(rb)}s more`);
+                toast(`Give each version ${MIN_LISTEN} seconds first – ${parts.join(', ')}.`);
+                return;
+            }
+            Object.values(decks).forEach(fadeOut);
+            live = null;
+            view = 'wide';
+            applyCamera();
+            closeMenus();
+
+            const prior = store.votes[song.id];
+            pendingChoice = prior ? prior.choice : null;
+            $('voteKicker').textContent = `${collection.name} · ${String(songIdx + 1).padStart(2, '0')} · ${song.title}`;
+            $('heardA').textContent = `heard ${fmt(heard(decks.A))}`;
+            $('heardB').textContent = `heard ${fmt(heard(decks.B))}`;
+            $('voteNote').value = prior ? prior.note : '';
+            $('voteSubmit').textContent = prior ? 'Update vote' : 'Submit vote';
+            const askName = !sessionNamed() || !store.name;
+            $('voteNameField').hidden = !askName;
+            if (askName) $('voteName').value = store.name || '';
+            renderChoice();
+            $('toast').classList.remove('show');
+            $('vote').classList.add('open');
+            updateUI();
+            setTimeout(() => document.querySelector('.choice').focus(), 50);
+        }
+
+        let afterVote = null;
+
+        function closeVote() {
+            $('vote').classList.remove('open');
+            $('voteForm').hidden = false;
+            $('voteThanks').hidden = true;
+        }
+
+        // Leave the thank-you card: on to the next song, the done screen, or back to the room.
+        function continueAfterVote() {
+            const next = afterVote;
+            afterVote = null;
+            closeVote();
+            next?.();
+        }
+
+        // A first name is asked for at the first vote of each browser session, then reused.
+        function sessionNamed() {
+            try {
+                return sessionStorage.getItem('abnocd:named') === '1';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function markNamed() {
+            try {
+                sessionStorage.setItem('abnocd:named', '1');
+            } catch (e) {
+                // Session storage blocked – the name is asked for at every vote instead.
+            }
+        }
+
+        function renderChoice() {
+            document.querySelectorAll('.choice').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.choice === pendingChoice)));
+            $('voteSubmit').disabled = !pendingChoice || (!$('voteNameField').hidden && !$('voteName').value.trim());
+        }
+
+        function submitVote(e) {
+            e.preventDefault();
+            if (!pendingChoice || !song) return;
+            if (!$('voteNameField').hidden) {
+                const name = $('voteName').value.trim();
+                if (!name) return $('voteName').focus();
+                store.name = name;
+                markNamed();
+            }
+            const d = decks[pendingChoice];
+            const prior = store.votes[song.id];
+            const note = $('voteNote').value.trim();
+            store.votes[song.id] = { choice: pendingChoice, version: d.version, note, at: new Date().toISOString() };
+            saveStore();
+            sendVote({
+                listenerId: store.listenerId,
+                listenerName: store.name,
+                collection: collection.id,
+                songId: song.id,
+                choseVersion: d.version,
+                shownAs: pendingChoice,
+                secondsA: Math.round(heard(decks.A)),
+                secondsB: Math.round(heard(decks.B)),
+                switches: store.switches[song.id] || 0,
+                note
+            });
+            updateUI();
+
+            const next = collection.songs.findIndex((s, i) => i > songIdx && !store.votes[s.id]);
+            const wrap = collection.songs.findIndex((s) => !store.votes[s.id]);
+            const target = next !== -1 ? next : wrap;
+            if (prior) {
+                afterVote = null;
+                $('thanksNext').textContent = 'Back to the room';
+            } else if (target !== -1) {
+                afterVote = () => selectSong(target);
+                $('thanksNext').textContent = `Next song: ${collection.songs[target].title} →`;
+            } else {
+                afterVote = showDone;
+                $('thanksNext').textContent = 'Finish';
+            }
+            $('thanksKicker').textContent = `${collection.name} · ${song.title}`;
+            $('thanksTitle').textContent = prior ? `Changed to ${pendingChoice}.` : `Voted ${pendingChoice}. Thank you.`;
+            $('voteForm').hidden = true;
+            $('voteThanks').hidden = false;
+            $('thanksShare').focus();
+        }
+
+        async function sendVote(payload) {
+            if (collection.demo) {
+                console.info('[AB/noCD demo] vote not sent:', payload);
+                return;
+            }
+            store.outbox.push(payload);
+            saveStore();
+            await flushOutbox();
+        }
+
+        async function flushOutbox() {
+            while (store.outbox.length) {
+                try {
+                    const res = await fetch('/api/vote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(store.outbox[0]) });
+                    if (res.status >= 500) return; // Server trouble – retry on next vote or visit.
+                    // 4xx means the vote can never succeed (e.g. the song was removed), so drop it.
+                    store.outbox.shift();
+                    saveStore();
+                } catch (e) {
+                    return; // Offline – retry on next vote or visit.
+                }
+            }
+        }
+
+        function showDone() {
+            const nextIdx = COLLECTIONS.findIndex((c) => votedCount(c) < c.songs.length);
+            const more = collection.total > collection.songs.length ? ` More songs are on the way – check back soon.` : '';
+            $('doneText').textContent = `You've voted on all ${collection.songs.length} songs in ${collection.name}. Your picks decide which versions get released.${more}`;
+            $('doneNext').hidden = nextIdx === -1;
+            $('doneNext').dataset.c = nextIdx;
+            $('done').classList.add('open');
+        }
+
+        // ---------------------------------------------------------------
+        // Rendering
+        // ---------------------------------------------------------------
+
+        const ICON_PLAY = '<path d="M3 1.5l7 4.5-7 4.5z" fill="#fff"/>';
+        const ICON_PAUSE = '<path d="M3 1.5h2v9H3zM7 1.5h2v9H7z" fill="#fff"/>';
+
+        function updateUI() {
+            $('collections').innerHTML = COLLECTIONS.map((c, i) =>
+                `<button role="tab" data-c="${i}" aria-current="${c === collection}" aria-selected="${c === collection}">${esc(c.name)}<sup>${votedCount(c)}/${c.songs.length}</sup></button>`
+            ).join('');
+            if (!song) return;
+
+            const cover = coverStyle(song, songIdx + COLLECTIONS.indexOf(collection) * 10);
+            const num = String(songIdx + 1).padStart(2, '0');
+            const vote = store.votes[song.id];
+
+            renderAbout(vote);
+
+            $('pickerName').textContent = collection.name;
+            $('pickerCover').setAttribute('style', cover);
+            $('pickerCover').textContent = song.cover ? '' : num;
+            $('pickerTitle').textContent = song.title;
+            const soFar = collection.total > collection.songs.length ? ' · more coming' : '';
+            $('pickerSub').textContent = `Song ${songIdx + 1} of ${collection.songs.length}${soFar}${vote ? ` · voted ${vote.choice}` : ''}`;
+            $('pickerList').innerHTML = `<button class="share-link" data-share type="button">${$('shareSong').querySelector('svg').outerHTML}Share ${esc(collection.name)}</button>` +
+                collection.songs.map((s, i) => {
+                    const v = store.votes[s.id];
+                    return `<button data-s="${i}" class="${i === songIdx ? 'current' : ''}"><span class="n">${String(i + 1).padStart(2, '0')}</span><span>${esc(s.title)}</span><span class="v">${v ? `✓ ${v.choice}` : ''}</span></button>`;
+                }).join('');
+            $('dots').innerHTML = collection.songs.map((s, i) => `<i class="${store.votes[s.id] ? 'voted' : ''} ${i === songIdx ? 'current' : ''}"></i>`).join('');
+            $('prevSong').disabled = songIdx === 0;
+            $('nextSong').disabled = songIdx === collection.songs.length - 1;
+
+            for (const k of ['A', 'B']) {
+                const active = live === k;
+                const playing = isPlaying(decks[k]);
+                $('bar' + k).classList.toggle('active', active);
+                $('bar' + k).setAttribute('aria-pressed', String(active && playing));
+                $('state' + k).innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
+            }
+
+            const xf = $('xfader');
+            xf.classList.toggle('live', !!live);
+            if (!xf.classList.contains('dragging')) xf.dataset.pos = live || '';
+            if (!xf.classList.contains('dragging')) $('xfaderKnob').style.left = live === 'A' ? '0%' : live === 'B' ? '100%' : '50%';
+            const row = $('xfaderRow');
+            row.setAttribute('aria-valuenow', live === 'A' ? '0' : live === 'B' ? '1' : '0.5');
+            row.setAttribute('aria-valuetext', live && isPlaying(decks[live]) ? `${live} playing` : 'Nothing playing');
+
+            renderTimes();
+            renderGate();
+        }
+
+        const ABOUT_LABELS = { lyrics: 'Lyrics', story: 'Story', versions: 'How the versions differ', notes: 'Notes' };
+
+        function renderAbout(vote) {
+            const about = song.about || { kind: 'lyrics', text: '' };
+            const sealed = about.kind === 'versions' && !vote;
+            $('aboutKind').textContent = ABOUT_LABELS[about.kind] || 'Notes';
+            // Version notes refer to the uploaded A and B files; say how those mapped onto this listener's decks.
+            const map = about.kind === 'versions' && vote && about.text;
+            $('aboutMap').hidden = !map;
+            if (map) {
+                $('aboutMap').textContent = flipFor(song.id)
+                    ? 'You heard these swapped: version A was on your B deck, version B on your A deck.'
+                    : 'You heard version A on your A deck and version B on your B deck.';
+            }
+            const text = !about.text ? 'Nothing here yet.' : sealed ? 'How the two versions differ is revealed after you vote.' : about.text;
+            $('aboutText').textContent = text;
+            $('aboutText').classList.toggle('muted', !about.text || sealed);
+        }
+
+        function renderTimes() {
+            for (const k of ['A', 'B']) {
+                const el = decks[k].el;
+                const dur = el?.duration;
+                const pct = el && isFinite(dur) && dur > 0 ? (el.currentTime / dur) * 100 : 0;
+                $('prog' + k).style.width = `${pct}%`;
+                $('time' + k).textContent = el ? fmt(el.currentTime) : '0:00';
+            }
+        }
+
+        function renderGate() {
+            if (!song) return;
+            const vote = store.votes[song.id];
+            const ra = remaining('A'), rb = remaining('B');
+            const ready = ra === 0 && rb === 0;
+            $('barSelect').setAttribute('aria-disabled', String(!ready));
+            $('selectSub').textContent = vote
+                ? `VOTED ${vote.choice} · CHANGE`
+                : ready ? 'READY TO VOTE' : `A ${Math.ceil(ra)}S · B ${Math.ceil(rb)}S`;
+
+            let hint = '';
+            const anyPlaying = isPlaying(decks.A) || isPlaying(decks.B);
+            if (loading) hint = 'Pressing records…';
+            else if (!anyPlaying && !$('vote').classList.contains('open')) hint = vote ? `You picked ${vote.choice} · press Play to listen again` : live ? 'Paused · press Play A or Play B' : 'Press Play A or Play B to start listening';
+            else if (anyPlaying && ready && !vote) hint = 'Heard enough? Tap SELECT to vote';
+            if ($('hint').textContent !== hint) $('hint').textContent = hint;
+        }
+
+        function closeMenus() {
+            $('pickerPanel').classList.remove('open');
+            $('pickerToggle').setAttribute('aria-expanded', 'false');
+        }
+
+        // ---------------------------------------------------------------
+        // Animation loop: fades, platters, needles, LED, listening time
+        // ---------------------------------------------------------------
+
+        let lastFrame = performance.now(), clock = 0, slowTimer = 0, saveTimer = 0, ledLevel = 0;
+
+        function rmsLevel(an, buf) {
+            an.getFloatTimeDomainData(buf);
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+            const db = 20 * Math.log10(Math.sqrt(sum / buf.length) + 1e-6);
+            return clamp((db + 36) / 33, 0, 1.1);
+        }
+
+        function frame(now) {
+            const dt = Math.min(0.1, (now - lastFrame) / 1000);
+            lastFrame = now;
+            clock += dt;
+            let anyPlaying = false;
+
+            for (const d of Object.values(decks)) {
+                if (d.el && d.vol !== d.volTarget) {
+                    const step = dt / 0.12;
+                    d.vol = d.vol < d.volTarget ? Math.min(d.volTarget, d.vol + step) : Math.max(d.volTarget, d.vol - step);
+                    applyVol(d);
+                }
+                if (d.pauseWhenSilent && d.vol <= 0) {
+                    d.el.pause();
+                    d.pauseWhenSilent = false;
+                    savePositions();
+                    updateUI();
+                }
+
+                const rolling = !!(d.el && !d.el.paused && d.el.readyState >= 3);
+                const target = rolling ? 1 : 0;
+                d.speed += (target - d.speed) * (1 - Math.exp(-dt / (target > d.speed ? 0.22 : 0.4)));
+                d.angle = (d.angle + d.speed * 200 * dt) % 360; // 33⅓ rpm = 200°/s
+                hw['rec' + d.key]?.setAttribute('transform', `rotate(${d.angle.toFixed(2)})`);
+
+                if (rolling && !d.pauseWhenSilent && !d.el.seeking && song) {
+                    anyPlaying = true;
+                    const h = store.heard[song.id] || (store.heard[song.id] = {});
+                    h[d.version] = (h[d.version] || 0) + dt;
+                }
+            }
+
+            // VU meters follow the live deck: real signal when readable, otherwise a plausible simulation.
+            let tL = 0, tR = 0;
+            const src = live && decks[live].el && !decks[live].el.paused ? decks[live] : null;
+            if (src) {
+                if (src.an && actx && actx.state === 'running') {
+                    tL = rmsLevel(src.an[0], src.buf);
+                    tR = rmsLevel(src.an[1], src.buf);
+                    if (tR < 0.02 && tL > 0.05) tR = tL * 0.97; // mono source
+                } else {
+                    const pulse = Math.pow(Math.max(0, Math.sin(clock * Math.PI * 2 * 0.8)), 6);
+                    tL = 0.52 + 0.14 * Math.sin(clock * 2.1) + 0.08 * Math.sin(clock * 5.3 + 1) + 0.18 * pulse;
+                    tR = 0.5 + 0.14 * Math.sin(clock * 1.9 + 0.7) + 0.08 * Math.sin(clock * 6.1) + 0.16 * pulse;
+                }
+                tL *= src.vol;
+                tR *= src.vol;
+            }
+            const tau = src ? 0.3 : 0.6;
+            const k = 1 - Math.exp(-dt / tau);
+            meters.L += (tL - meters.L) * k;
+            meters.R += (tR - meters.R) * k;
+            const jitter = () => (src ? (Math.random() - 0.5) * 0.012 : 0);
+            const o = CONFIG.overlays;
+            hw.needleL?.setAttribute('transform', `rotate(${(-46 + clamp(meters.L + jitter(), 0, 1.12) * 92).toFixed(2)} ${o.meterL.x} ${o.meterL.y})`);
+            hw.needleR?.setAttribute('transform', `rotate(${(-46 + clamp(meters.R + jitter(), 0, 1.12) * 92).toFixed(2)} ${o.meterR.x} ${o.meterR.y})`);
+
+            ledLevel += ((anyPlaying ? 1 : 0.2) - ledLevel) * (1 - Math.exp(-dt / 0.15));
+            hw.led?.setAttribute('opacity', ledLevel.toFixed(3));
+
+            renderTimes();
+            slowTimer += dt;
+            if (slowTimer > 0.25) {
+                slowTimer = 0;
+                renderGate();
+            }
+            saveTimer += dt;
+            if (saveTimer > 1 && anyPlaying) {
+                saveTimer = 0;
+                savePositions();
+            }
+            requestAnimationFrame(frame);
+        }
+
+        // ---------------------------------------------------------------
+        // A/B slider (position indicator; drag past centre, or ←/→, to switch)
+        // ---------------------------------------------------------------
+
+        function initCrossfader() {
+            const row = $('xfaderRow'), track = $('xfaderTrack'), knob = $('xfaderKnob'), xf = $('xfader');
+            let dragging = false;
+            const frac = (e) => {
+                const r = track.getBoundingClientRect();
+                return clamp((e.clientX - r.left) / r.width, 0, 1);
+            };
+            row.addEventListener('pointerdown', (e) => {
+                if (!song) return;
+                dragging = true;
+                row.setPointerCapture(e.pointerId);
+                xf.classList.add('dragging');
+                xf.dataset.pos = '';
+                knob.style.left = `${frac(e) * 100}%`;
+            });
+            row.addEventListener('pointermove', (e) => {
+                if (dragging) knob.style.left = `${frac(e) * 100}%`;
+            });
+            const end = (e) => {
+                if (!dragging) return;
+                dragging = false;
+                xf.classList.remove('dragging');
+                const key = frac(e) < 0.5 ? 'A' : 'B';
+                if (live !== key || !isPlaying(decks[key])) pressDeck(key);
+                else updateUI();
+            };
+            row.addEventListener('pointerup', end);
+            row.addEventListener('keydown', (e) => {
+                const key = { ArrowLeft: 'A', ArrowDown: 'A', ArrowRight: 'B', ArrowUp: 'B' }[e.key];
+                if (!key) return;
+                e.preventDefault();
+                e.stopPropagation();
+                if (live !== key || !isPlaying(decks[key])) pressDeck(key);
+            });
+            xf.addEventListener('animationend', () => xf.classList.remove('nudge'));
+            row.addEventListener('pointercancel', () => {
+                dragging = false;
+                xf.classList.remove('dragging');
+                updateUI();
+            });
+        }
+
+        // ---------------------------------------------------------------
+        // Calibration mode (?calibrate): drag overlay anchors onto the render
+        // ---------------------------------------------------------------
+
+        function initCalibrate() {
+            const box = document.createElement('div');
+            box.className = 'cal';
+            box.innerHTML = 'CALIBRATE · drag the copper handles onto the render, then paste into CONFIG.overlays<textarea readonly></textarea>';
+            $('stage').appendChild(box);
+            const out = box.querySelector('textarea');
+            const hardware = $('hardware');
+            hardware.style.pointerEvents = 'auto';
+
+            const draw = () => {
+                const o = CONFIG.overlays;
+                const pts = { recA: o.recA, recB: o.recB, meterL: o.meterL, meterR: o.meterR, led: o.led };
+                $('calHandles').innerHTML = Object.entries(pts).map(([k, p]) =>
+                    `<g data-k="${k}" style="cursor:move"><circle cx="${p.x}" cy="${p.y}" r="7" fill="rgba(184,115,51,.45)" stroke="#d4a574" stroke-width="1.5"/><text x="${p.x + 9}" y="${p.y - 8}" font-size="9" fill="#fff" font-family="monospace">${k}</text></g>`
+                ).join('');
+                out.value = JSON.stringify(o, null, 1);
+            };
+
+            let dragKey = null;
+            hardware.addEventListener('pointerdown', (e) => {
+                const g = e.target.closest('[data-k]');
+                if (!g) return;
+                dragKey = g.dataset.k;
+                hardware.setPointerCapture(e.pointerId);
+            });
+            hardware.addEventListener('pointermove', (e) => {
+                if (!dragKey) return;
+                const r = $('stage').getBoundingClientRect();
+                const x = Math.round((e.clientX - r.left - cam.tx) / cam.S);
+                const y = Math.round((e.clientY - r.top - cam.ty) / cam.S);
+                const p = CONFIG.overlays[dragKey];
+                if (p.face) {
+                    p.face = [p.face[0] + x - p.x, p.face[1] + y - p.y, p.face[2], p.face[3]];
+                }
+                p.x = x;
+                p.y = y;
+                buildHardware();
+                draw();
+            });
+            hardware.addEventListener('pointerup', () => { dragKey = null; });
+            draw();
+        }
+
+        // ---------------------------------------------------------------
+        // Wiring
+        // ---------------------------------------------------------------
+
+        async function init() {
+            buildBackdrop();
+            buildHardware();
+            applyCamera(false);
+            initCrossfader();
+            updateUI();
+            requestAnimationFrame(frame);
+
+            const enter = document.querySelector('#welcomeForm .cta');
+            enter.disabled = true;
+            await loadCatalog();
+            enter.disabled = false;
+            updateUI();
+
+            const route = parseRoute();
+            if (route && route.ci !== -1) {
+                const c = COLLECTIONS[route.ci];
+                $('welcomeSent').textContent = route.si !== -1 ? `You've been sent “${c.songs[route.si].title}”` : `You've been sent ${c.name}`;
+            }
+
+            $('welcomeForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                audioCtx();
+                $('welcome').classList.remove('open');
+                if (route && route.ci !== -1) {
+                    collection = COLLECTIONS[route.ci];
+                    if (route.si !== -1) selectSong(route.si);
+                    else selectCollection(route.ci);
+                } else {
+                    const ci = COLLECTIONS.findIndex((c) => votedCount(c) < c.songs.length);
+                    selectCollection(ci === -1 ? 0 : ci);
+                }
+                if (route?.missing) toast("That song isn't available any more – here's what's playing now.");
+                // Show once that the slider moves.
+                setTimeout(() => !live && $('xfader').classList.add('nudge'), 1600);
+                flushOutbox();
+            });
+
+            $('barA').addEventListener('click', () => pressDeck('A'));
+            $('barB').addEventListener('click', () => pressDeck('B'));
+            $('barSelect').addEventListener('click', openVote);
+
+            $('collections').addEventListener('click', (e) => {
+                const b = e.target.closest('[data-c]');
+                if (b && song && COLLECTIONS[b.dataset.c] !== collection) selectCollection(Number(b.dataset.c));
+            });
+
+            $('aboutToggle').addEventListener('click', () => {
+                const open = $('aboutPanel').classList.toggle('expanded');
+                $('aboutToggle').setAttribute('aria-expanded', String(open));
+                if (open) closeMenus();
+            });
+            $('pickerToggle').addEventListener('click', () => {
+                const open = $('pickerPanel').classList.toggle('open');
+                $('pickerToggle').setAttribute('aria-expanded', String(open));
+                if (open) {
+                    $('aboutPanel').classList.remove('expanded');
+                    $('aboutToggle').setAttribute('aria-expanded', 'false');
+                }
+            });
+            $('pickerList').addEventListener('click', (e) => {
+                if (e.target.closest('[data-share]')) return share('collection');
+                const b = e.target.closest('[data-s]');
+                if (b) selectSong(Number(b.dataset.s));
+            });
+            $('prevSong').addEventListener('click', () => song && selectSong(songIdx - 1));
+            $('nextSong').addEventListener('click', () => song && selectSong(songIdx + 1));
+            document.addEventListener('pointerdown', (e) => {
+                if (!e.target.closest('#pickerPanel')) closeMenus();
+            });
+
+            document.querySelectorAll('.choice').forEach((b) => b.addEventListener('click', () => {
+                pendingChoice = b.dataset.choice;
+                renderChoice();
+            }));
+            $('voteForm').addEventListener('submit', submitVote);
+            $('voteName').addEventListener('input', renderChoice);
+            $('voteCancel').addEventListener('click', closeVote);
+            $('thanksShare').addEventListener('click', () => share('song'));
+            $('thanksNext').addEventListener('click', continueAfterVote);
+            $('shareSong').addEventListener('click', () => share('song'));
+            $('doneShare').addEventListener('click', () => share('collection'));
+
+            $('doneNext').addEventListener('click', () => {
+                $('done').classList.remove('open');
+                selectCollection(Number($('doneNext').dataset.c));
+            });
+            $('doneStay').addEventListener('click', () => $('done').classList.remove('open'));
+
+            document.addEventListener('keydown', (e) => {
+                if (e.target.closest('input, textarea')) return;
+                if (e.key === 'Escape') {
+                    if (!$('voteThanks').hidden) continueAfterVote();
+                    else closeVote();
+                    closeMenus();
+                    $('aboutPanel').classList.remove('expanded');
+                    $('aboutToggle').setAttribute('aria-expanded', 'false');
+                    return;
+                }
+                if ($('welcome').classList.contains('open') || $('vote').classList.contains('open') || e.metaKey || e.ctrlKey) return;
+                const key = e.key.toLowerCase();
+                if (key === 'a') pressDeck('A');
+                else if (key === 'b') pressDeck('B');
+                else if (key === 's') openVote();
+                else if (key === ' ' && live && !e.target.closest('button')) {
+                    e.preventDefault();
+                    pressDeck(live);
+                }
+            });
+
+            window.addEventListener('resize', () => applyCamera(false));
+            window.addEventListener('pagehide', savePositions);
+
+            if (new URLSearchParams(location.search).has('calibrate')) initCalibrate();
+        }
+
+        init();
+    </script>
+</body>
+</html>

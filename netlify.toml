@@ -1,0 +1,24 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/studio*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+    Cache-Control = "no-store"
+
+# Share links: /<collection> and /<collection>/<song> open the listening room.
+# Not forced, so real files, /studio and the /api functions still take precedence.
+[[redirects]]
+  from = "/:collection/:song"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/:collection"
+  to = "/index.html"
+  status = 200
