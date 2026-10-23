@@ -783,7 +783,7 @@
             const data = await api('/api/admin/catalog');
             catalog = data;
             songsPerCollection = data.songsPerCollection || 10;
-            $('aiStatus').textContent = data.coverAI ? 'AI COVERS ON' : 'AI COVERS OFF · GENERATIVE ONLY';
+            $('aiStatus').textContent = data.coverAI ? `AI COVERS: ${data.coverAI.toUpperCase()}` : 'AI COVERS OFF · GENERATIVE ONLY';
             $('login').hidden = true;
             $('app').hidden = false;
             $('signOut').hidden = false;
@@ -1126,7 +1126,7 @@
                             const live = song.v1 && song.v2;
                             if (live && !song.cover) {
                                 setNote('Generating cover…');
-                                const res = await api('/api/cover', { method: 'POST', body: { collectionId: group.id, songId: song.id } });
+                                const res = await requestCover(group.id, song.id);
                                 if (res.warning) toast(res.warning);
                             }
                             row.state = 'done';
@@ -1285,11 +1285,21 @@
             return serial(fn).then(() => label && toast(label)).catch((err) => toast(err.message)).finally(() => refresh().catch(() => {}));
         }
 
+        // OpenAI covers take a while: the server answers { pending: true } until the image is ready.
+        async function requestCover(collectionId, songId, mode = 'auto') {
+            let res = await api('/api/cover', { method: 'POST', body: { collectionId, songId, mode } });
+            while (res.pending) {
+                await new Promise((r) => setTimeout(r, 3000));
+                res = await api('/api/cover/poll', { method: 'POST', body: { collectionId, songId } });
+            }
+            return res;
+        }
+
         async function makeCover(collectionId, songId, mode) {
             busyCovers.add(songId);
             renderCollections();
             try {
-                const res = await api('/api/cover', { method: 'POST', body: { collectionId, songId, mode } });
+                const res = await requestCover(collectionId, songId, mode);
                 if (res.warning) toast(res.warning);
             } finally {
                 busyCovers.delete(songId);

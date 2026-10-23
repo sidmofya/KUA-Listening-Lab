@@ -1,3 +1,4 @@
+import { coverProvider } from '../lib/cover.mjs';
 import {
     ABOUT_KINDS, SONGS_PER_COLLECTION, checkPassword, clearCookie, deleteAudio, findCollection, isAdmin,
     json, readCatalog, sessionCookie, slug, store, writeCatalog
@@ -20,7 +21,7 @@ export default async (req) => {
     const catalog = await readCatalog();
 
     if (route === 'catalog' && method === 'GET') {
-        return json({ ...catalog, coverAI: !!process.env.GEMINI_API_KEY, songsPerCollection: SONGS_PER_COLLECTION });
+        return json({ ...catalog, coverAI: coverProvider(), songsPerCollection: SONGS_PER_COLLECTION });
     }
 
     // Every vote, for the Results view and CSV export.

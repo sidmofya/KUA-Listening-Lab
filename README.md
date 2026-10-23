@@ -28,7 +28,7 @@ Listeners hear two versions of each song on a two-deck hi-fi and vote for the on
 
 In the Studio you can also reorder songs (drag, or ↑ ↓), rename them, edit About texts, regenerate covers (AI or generative), replace a version (upload the same filename again) and delete songs or collections. A collection holds up to 10 songs.
 
-**Covers:** with `GEMINI_API_KEY` set, covers come from Google Imagen, then Gemini image generation. With no key, no credits, or a slow response (Netlify stops functions after about 10 seconds), the Studio falls back to generative art drawn from the theme's colours and mood, and labels it so you can retry with AI later. Override the models with `COVER_MODELS` (comma-separated) and the time budget with `COVER_TIMEOUT_MS`.
+**Covers:** with `OPENAI_API_KEY` set, covers come from OpenAI's `gpt-image-1`, run in OpenAI's background mode because an image can take longer than a Netlify function may run; the Studio shows a spinner and collects the image when it's ready (usually 10–40 seconds). Without an OpenAI key but with `GEMINI_API_KEY`, covers come from Gemini's image models (these need billing enabled; the free tier allows no images). With no key, no credits, an unverified OpenAI organization, or a timeout, the Studio falls back to generative art drawn from the theme's colours and mood, and labels it so you can retry with AI later. Tune OpenAI with `OPENAI_IMAGE_QUALITY` (`low`, `medium`, `high`) and `OPENAI_TEXT_MODEL`; tune Gemini with `COVER_MODELS` and `COVER_TIMEOUT_MS`.
 
 ## Hosting (Netlify)
 
@@ -42,7 +42,8 @@ Environment variables (Site configuration → Environment variables):
 | --- | --- |
 | `STUDIO_PASSWORD` | Studio sign-in password |
 | `SESSION_SECRET` | Any long random string; signs Studio sessions |
-| `GEMINI_API_KEY` | Google AI Studio key for AI covers (optional) |
+| `OPENAI_API_KEY` | OpenAI key for AI covers (optional; needs credits and a verified organization) |
+| `GEMINI_API_KEY` | Google AI Studio key for AI covers, used when there is no OpenAI key (optional; needs billing) |
 
 Local development: `npm install`, put the variables in a `.env` file, then `npm run dev` (Netlify Dev emulates the functions and Blobs at http://localhost:8888). Without the API, e.g. on a plain static server, the listening room falls back to two demo collections whose audio is synthesised in the browser; `?demo` forces them.
 

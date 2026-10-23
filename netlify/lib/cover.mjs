@@ -62,6 +62,67 @@ export async function aiCover(prompt) {
 }
 
 // ---------------------------------------------------------------
+// AI covers via OpenAI (preferred when OPENAI_API_KEY is set)
+//
+// gpt-image-1 often needs 10–40 s, longer than Netlify lets a function run,
+// so the job runs in OpenAI's background mode: one call starts it and short
+// follow-up calls collect the result.
+// ---------------------------------------------------------------
+
+const openAIBase = () => process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+const openAIHeaders = () => ({ authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' });
+
+export function coverProvider() {
+    if (process.env.OPENAI_API_KEY) return 'openai';
+    if (process.env.GEMINI_API_KEY) return 'gemini';
+    return null;
+}
+
+function openAIMessage(message) {
+    const m = String(message || '');
+    if (/verif/i.test(m)) return 'OpenAI needs your organization verified before it makes images (platform.openai.com → Settings → Organization → Verify)';
+    if (/billing|quota|credit|insufficient/i.test(m)) return 'Your OpenAI account has no credits for image generation (platform.openai.com → Billing)';
+    if (/safety|moderation|policy/i.test(m)) return 'OpenAI declined this prompt on safety grounds';
+    return m || 'OpenAI image generation failed';
+}
+
+export async function startOpenAICover(prompt) {
+    const res = await fetch(`${openAIBase()}/responses`, {
+        method: 'POST',
+        headers: openAIHeaders(),
+        signal: AbortSignal.timeout(8000),
+        body: JSON.stringify({
+            model: process.env.OPENAI_TEXT_MODEL || 'gpt-4.1-mini',
+            background: true,
+            store: true,
+            input: prompt,
+            tools: [{ type: 'image_generation', size: '1024x1024', quality: process.env.OPENAI_IMAGE_QUALITY || 'medium' }],
+            tool_choice: { type: 'image_generation' }
+        })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(openAIMessage(data.error?.message || `HTTP ${res.status}`));
+    return data.id;
+}
+
+// Resolves to null while the job is still running, or to the finished image.
+export async function pollOpenAICover(id) {
+    const res = await fetch(`${openAIBase()}/responses/${encodeURIComponent(id)}`, {
+        headers: openAIHeaders(),
+        signal: AbortSignal.timeout(8000)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(openAIMessage(data.error?.message || `HTTP ${res.status}`));
+    if (data.status === 'queued' || data.status === 'in_progress') return null;
+    if (data.status !== 'completed') {
+        throw new Error(openAIMessage(data.error?.message || data.incomplete_details?.reason || `generation ${data.status}`));
+    }
+    const call = (data.output || []).find((o) => o.type === 'image_generation_call' && o.result);
+    if (!call) throw new Error('OpenAI returned no image (possibly blocked by its safety filters)');
+    return { bytes: Buffer.from(call.result, 'base64'), type: 'image/png', source: 'openai' };
+}
+
+// ---------------------------------------------------------------
 // Generative fallback: palette and style from the theme, variation from the title
 // ---------------------------------------------------------------
 
