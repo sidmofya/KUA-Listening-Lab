@@ -452,7 +452,7 @@
             box-shadow: 0 0 0 2px rgba(184, 115, 51, 0.55);
         }
 
-        /* ---------- Hint, crossfader, bars ---------- */
+        /* ---------- Hint, A/B slider, bars ---------- */
 
         .hint {
             position: absolute;
@@ -470,61 +470,125 @@
             opacity: 0;
         }
 
+        /* A/B slider: a fader slot and cap, so it reads as something to drag. */
         .xfader {
             position: absolute;
             left: 50%;
-            bottom: 70px;
+            bottom: 74px;
             transform: translateX(-50%);
-            width: 220px;
-            text-align: center;
+            width: 240px;
             font-family: var(--mono);
-            font-size: 11px;
-            letter-spacing: 0.08em;
-            text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+            font-size: 12px;
+            font-weight: 500;
+            text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
             z-index: 5;
             user-select: none;
-        }
-
-        .xfader-label {
-            margin-bottom: 6px;
         }
 
         .xfader-row {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 8px 0;
+            gap: 24px;
+            padding: 12px 4px;
             touch-action: none;
             cursor: grab;
+            outline: none;
+        }
+
+        .xfader.dragging .xfader-row {
+            cursor: grabbing;
+        }
+
+        .xfader-row:focus-visible .xfader-track {
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 0 2px var(--copper-lt);
         }
 
         .xfader-track {
             position: relative;
             flex: 1;
-            height: 3px;
-            background: #fff;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(10, 8, 6, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
+            /* Tick marks at the A end, the centre and the B end */
+            background-image: linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
+                              linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)),
+                              linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7));
+            background-size: 1px 12px;
+            background-position: 0 50%, 50% 50%, 100% 50%;
+            background-repeat: no-repeat;
+            overflow: visible;
         }
 
         .xfader-knob {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 18px;
-            height: 18px;
-            margin: -9px 0 0 -9px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4);
-            border: 2px solid #fff;
-            transition: left 0.45s cubic-bezier(0.65, 0, 0.35, 1), border-color 0.3s ease, background 0.3s ease;
+            width: 28px;
+            height: 20px;
+            margin: -10px 0 0 -14px;
+            border-radius: 4px;
+            /* Grip lines over a brushed-metal cap */
+            background:
+                repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 4px) 50% 50% / 9px 10px no-repeat,
+                linear-gradient(#f4f4f2, #bdbdb8 55%, #d8d8d4);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            transition: left 0.45s cubic-bezier(0.65, 0, 0.35, 1), transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+        }
+
+        /* Sideways chevrons either side of the cap hint that it slides */
+        .xfader-knob::before,
+        .xfader-knob::after {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-56%);
+            font-size: 15px;
+            line-height: 1;
+            color: rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+        }
+
+        .xfader-knob::before {
+            content: '‹';
+            right: calc(100% + 5px);
+        }
+
+        .xfader-knob::after {
+            content: '›';
+            left: calc(100% + 5px);
+        }
+
+        /* At either end, only the chevron pointing back along the slot makes sense */
+        .xfader[data-pos="A"] .xfader-knob::before,
+        .xfader[data-pos="B"] .xfader-knob::after {
+            opacity: 0;
+        }
+
+        .xfader-row:hover .xfader-knob {
+            transform: scale(1.06);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
         .xfader.live .xfader-knob {
-            border-color: var(--copper-lt);
-            background: rgba(184, 115, 51, 0.7);
+            background:
+                repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.3) 0 1px, transparent 1px 4px) 50% 50% / 9px 10px no-repeat,
+                linear-gradient(#e7b27f, var(--copper) 55%, #c98a4e);
         }
 
         .xfader.dragging .xfader-knob {
-            transition: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transform: scale(1.08);
+        }
+
+        .xfader.nudge .xfader-knob {
+            animation: nudge 1.2s ease-in-out 1;
+        }
+
+        @keyframes nudge {
+            0%, 100% { margin-left: -14px; }
+            25% { margin-left: -24px; }
+            60% { margin-left: -4px; }
         }
 
         .bars {
@@ -918,8 +982,8 @@
             }
 
             .xfader {
-                width: 170px;
-                bottom: 68px;
+                width: 190px;
+                bottom: 70px;
             }
 
             .hint {
@@ -929,6 +993,10 @@
         }
 
         @media (prefers-reduced-motion: reduce) {
+            .xfader.nudge .xfader-knob {
+                animation: none;
+            }
+
             .scene {
                 transition-duration: 0.01s;
             }
@@ -991,8 +1059,7 @@
         <div class="hint" id="hint" aria-live="polite"></div>
 
         <div class="xfader" id="xfader">
-            <div class="xfader-label">CROSSFADER</div>
-            <div class="xfader-row" id="xfaderRow">
+            <div class="xfader-row" id="xfaderRow" role="slider" tabindex="0" aria-label="Switch between A and B" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0.5" aria-valuetext="Nothing playing">
                 <span>A</span>
                 <div class="xfader-track" id="xfaderTrack"><div class="xfader-knob" id="xfaderKnob"></div></div>
                 <span>B</span>
@@ -2167,7 +2234,11 @@
 
             const xf = $('xfader');
             xf.classList.toggle('live', !!live);
+            if (!xf.classList.contains('dragging')) xf.dataset.pos = live || '';
             if (!xf.classList.contains('dragging')) $('xfaderKnob').style.left = live === 'A' ? '0%' : live === 'B' ? '100%' : '50%';
+            const row = $('xfaderRow');
+            row.setAttribute('aria-valuenow', live === 'A' ? '0' : live === 'B' ? '1' : '0.5');
+            row.setAttribute('aria-valuetext', live && isPlaying(decks[live]) ? `${live} playing` : 'Nothing playing');
 
             renderTimes();
             renderGate();
@@ -2314,7 +2385,7 @@
         }
 
         // ---------------------------------------------------------------
-        // Crossfader (position indicator; drag past centre to switch)
+        // A/B slider (position indicator; drag past centre, or ←/→, to switch)
         // ---------------------------------------------------------------
 
         function initCrossfader() {
@@ -2329,6 +2400,7 @@
                 dragging = true;
                 row.setPointerCapture(e.pointerId);
                 xf.classList.add('dragging');
+                xf.dataset.pos = '';
                 knob.style.left = `${frac(e) * 100}%`;
             });
             row.addEventListener('pointermove', (e) => {
@@ -2343,6 +2415,14 @@
                 else updateUI();
             };
             row.addEventListener('pointerup', end);
+            row.addEventListener('keydown', (e) => {
+                const key = { ArrowLeft: 'A', ArrowDown: 'A', ArrowRight: 'B', ArrowUp: 'B' }[e.key];
+                if (!key) return;
+                e.preventDefault();
+                e.stopPropagation();
+                if (live !== key || !isPlaying(decks[key])) pressDeck(key);
+            });
+            xf.addEventListener('animationend', () => xf.classList.remove('nudge'));
             row.addEventListener('pointercancel', () => {
                 dragging = false;
                 xf.classList.remove('dragging');
@@ -2434,6 +2514,8 @@
                     selectCollection(ci === -1 ? 0 : ci);
                 }
                 if (route?.missing) toast("That song isn't available any more – here's what's playing now.");
+                // Show once that the slider moves.
+                setTimeout(() => !live && $('xfader').classList.add('nudge'), 1600);
                 flushOutbox();
             });
 
