@@ -5,6 +5,8 @@ Listeners hear two versions of each song on a two-deck hi-fi and vote for the on
 - **A / B** move the camera to that deck and play its version. Each version resumes where the listener left it.
 - **SELECT** pulls back to the wide shot and opens the vote (A or B, plus an optional note). It unlocks after 15 seconds of each version.
 - **About this song** (top left, a paper liner-notes card) shows the song's lyrics, story, notes, or how the two versions differ, and expands with the chevron. A "how the versions differ" note stays hidden until the listener has voted, then shows with a line saying which deck each of your files was on. **Song picker** (top right) lists the collection's songs.
+- **Slider:** three positions – A, the room (middle) and B. A and B play that version and move the camera to its deck; the middle pulls back to the wide room view while the music keeps playing, so the wall drum is in reach on phones. ←/→ step between positions.
+- **Continuous listening:** if a version plays to the end, the other version follows, then the next song, until the listener pauses, votes or picks something; the collection's last song stops (with the thank-you card if everything is voted).
 - **Drum along:** tapping the oxblood disc on the wall plays a synthesised djembe hit – deep bass at the centre, rising through tone to a bright slap at the rim – with a copper ripple where it was struck. A one-time hint mentions it after about 20 seconds of listening. The disc's position lives in `CONFIG.overlays.drum` (adjust with `?calibrate`).
 - Listeners enter without signing in; the first vote of each browser session asks for a first name, which later votes reuse.
 - **Top nav** switches collections.

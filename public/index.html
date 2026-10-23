@@ -513,14 +513,26 @@
             background: rgba(10, 8, 6, 0.55);
             border: 1px solid rgba(255, 255, 255, 0.35);
             box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
-            /* Tick marks at the A end, the centre and the B end */
+            /* Tick marks at the A and B ends; the centre (room view) gets a ring, below */
             background-image: linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
-                              linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)),
                               linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7));
             background-size: 1px 12px;
-            background-position: 0 50%, 50% 50%, 100% 50%;
+            background-position: 0 50%, 100% 50%;
             background-repeat: no-repeat;
             overflow: visible;
+        }
+
+        /* The middle detent is the room view, where the wall drum is in reach */
+        .xfader-track::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 10px;
+            height: 10px;
+            margin: -6px 0 0 -6px;
+            border: 1.5px solid rgba(255, 255, 255, 0.75);
+            border-radius: 50%;
         }
 
         .xfader-knob {
@@ -1991,10 +2003,7 @@
                 if (p && p < el.duration - 1) el.currentTime = p;
                 renderTimes();
             });
-            el.addEventListener('ended', () => {
-                savePositions();
-                updateUI();
-            });
+            el.addEventListener('ended', () => onDeckEnded(d));
             el.src = url;
         }
 
@@ -2045,26 +2054,70 @@
             d.pauseWhenSilent = true;
         }
 
-        function pressDeck(key) {
+        // keepView: leave the camera where it is (room view during continuous play).
+        // auto: a switch made by continuous play, not counted as the listener's.
+        function pressDeck(key, { keepView = false, auto = false } = {}) {
             if (!song || loading || !decks[key].el) return;
             audioCtx();
             closeMenus();
             const d = decks[key];
+            const showDeck = () => {
+                if (keepView || view === key) return;
+                view = key;
+                applyCamera();
+            };
             if (live === key) {
-                if (isPlaying(d)) fadeOut(d);
-                else startDeck(d);
+                if (isPlaying(d) && view !== key && !keepView) showDeck(); // back from the room view without pausing
+                else if (isPlaying(d)) fadeOut(d);
+                else {
+                    startDeck(d);
+                    showDeck();
+                }
             } else {
                 if (live) {
                     fadeOut(decks[live]);
-                    store.switches[song.id] = (store.switches[song.id] || 0) + 1;
+                    if (!auto) store.switches[song.id] = (store.switches[song.id] || 0) + 1;
                 }
                 live = key;
-                view = key;
-                applyCamera();
+                showDeck();
                 startDeck(d);
             }
             savePositions();
             updateUI();
+        }
+
+        // Slider middle: pull back to the wide room view and keep the music playing.
+        function setRoomView() {
+            if (view === 'wide') return updateUI();
+            view = 'wide';
+            applyCamera();
+            updateUI();
+        }
+
+        // Continuous listening: when a version plays out, the other version follows,
+        // then the next song – until the listener pauses, votes or picks something.
+        let endedVersions = new Set();
+
+        function onDeckEnded(d) {
+            savePositions();
+            if (!song || d.key !== live) return updateUI();
+            endedVersions.add(d.key);
+            const keepView = view === 'wide';
+            const other = d.key === 'A' ? 'B' : 'A';
+            if (!endedVersions.has(other)) {
+                const o = decks[other].el;
+                if (o && isFinite(o.duration) && o.currentTime >= o.duration - 1) o.currentTime = 0;
+                pressDeck(other, { keepView, auto: true });
+                toast('Now playing the other version');
+                return;
+            }
+            if (songIdx + 1 < collection.songs.length) {
+                toast(`Up next: ${collection.songs[songIdx + 1].title}`);
+                selectSong(songIdx + 1, { autoplay: true, keepView });
+                return;
+            }
+            updateUI();
+            if (collection.songs.every((x) => store.votes[x.id])) showDone();
         }
 
         function savePositions() {
@@ -2099,8 +2152,9 @@
         // Song & collection selection
         // ---------------------------------------------------------------
 
-        async function selectSong(idx) {
+        async function selectSong(idx, { autoplay = false, keepView = false } = {}) {
             const token = ++loadToken;
+            endedVersions = new Set();
             savePositions();
             Object.values(decks).forEach(disposeDeck);
             songIdx = clamp(idx, 0, collection.songs.length - 1);
@@ -2126,6 +2180,7 @@
             if (token !== loadToken) return;
             loading = false;
             updateUI();
+            if (autoplay) pressDeck('A', { keepView, auto: true });
         }
 
         function selectCollection(ci) {
@@ -2407,11 +2462,15 @@
 
             const xf = $('xfader');
             xf.classList.toggle('live', !!live);
-            if (!xf.classList.contains('dragging')) xf.dataset.pos = live || '';
-            if (!xf.classList.contains('dragging')) $('xfaderKnob').style.left = live === 'A' ? '0%' : live === 'B' ? '100%' : '50%';
+            // The knob shows where the camera is: A, the room (middle) or B.
+            const at = view === 'A' || view === 'B' ? view : '';
+            if (!xf.classList.contains('dragging')) {
+                xf.dataset.pos = at;
+                $('xfaderKnob').style.left = at === 'A' ? '0%' : at === 'B' ? '100%' : '50%';
+            }
             const row = $('xfaderRow');
-            row.setAttribute('aria-valuenow', live === 'A' ? '0' : live === 'B' ? '1' : '0.5');
-            row.setAttribute('aria-valuetext', live && isPlaying(decks[live]) ? `${live} playing` : 'Nothing playing');
+            row.setAttribute('aria-valuenow', at === 'A' ? '0' : at === 'B' ? '1' : '0.5');
+            row.setAttribute('aria-valuetext', `${live && isPlaying(decks[live]) ? `${live} playing` : 'Nothing playing'}${at ? '' : ' · room view'}`);
 
             renderTimes();
             renderGate();
@@ -2470,7 +2529,8 @@
                     store.drumHinted = true;
                     saveStore();
                 }
-                hint = 'Psst – tap the circle on the wall to drum along';
+                const offscreen = view !== 'wide' && $('stage').clientWidth < $('stage').clientHeight;
+                hint = offscreen ? 'Psst – slide to the middle, then tap the circle to drum along' : 'Psst – tap the circle on the wall to drum along';
             }
             if ($('hint').textContent !== hint) $('hint').textContent = hint;
         }
@@ -2595,17 +2655,24 @@
                 if (!dragging) return;
                 dragging = false;
                 xf.classList.remove('dragging');
-                const key = frac(e) < 0.5 ? 'A' : 'B';
-                if (live !== key || !isPlaying(decks[key])) pressDeck(key);
+                const f = frac(e);
+                goTo(f < 1 / 3 ? 'A' : f > 2 / 3 ? 'B' : 'room');
+            };
+            // A and B switch to that version; the middle pulls back to the room.
+            const goTo = (pos) => {
+                if (pos === 'room') return setRoomView();
+                if (live !== pos || !isPlaying(decks[pos]) || view !== pos) pressDeck(pos);
                 else updateUI();
             };
             row.addEventListener('pointerup', end);
             row.addEventListener('keydown', (e) => {
-                const key = { ArrowLeft: 'A', ArrowDown: 'A', ArrowRight: 'B', ArrowUp: 'B' }[e.key];
-                if (!key) return;
+                const step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key];
+                if (!step || !song) return;
                 e.preventDefault();
                 e.stopPropagation();
-                if (live !== key || !isPlaying(decks[key])) pressDeck(key);
+                const order = ['A', 'room', 'B'];
+                const here = order.indexOf(view === 'A' || view === 'B' ? view : 'room');
+                goTo(order[clamp(here + step, 0, 2)]);
             });
             xf.addEventListener('animationend', () => xf.classList.remove('nudge'));
             row.addEventListener('pointercancel', () => {
