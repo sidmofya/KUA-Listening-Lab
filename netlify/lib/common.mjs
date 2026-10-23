@@ -6,6 +6,9 @@ import { getStore } from '@netlify/blobs';
 export const CHUNK = 4 * 1024 * 1024;
 export const SONGS_PER_COLLECTION = 10;
 
+// What a song's "About this song" text is. 'versions' notes stay hidden from listeners until they vote.
+export const ABOUT_KINDS = ['lyrics', 'story', 'versions', 'notes'];
+
 export const store = (name) => getStore({ name, consistency: 'strong' });
 
 export function json(data, status = 200, headers = {}) {
@@ -102,7 +105,7 @@ export function publicCatalog(catalog) {
                         id: s.id,
                         title: s.title,
                         artist: s.artist || c.artist || 'KŮA',
-                        lyrics: s.lyrics || '',
+                        about: { kind: s.aboutKind || 'lyrics', text: s.lyrics || '' },
                         cover: s.cover ? `/api/cover/${s.cover.key}` : null,
                         v1: `/api/audio/${s.v1.key}`,
                         v2: `/api/audio/${s.v2.key}`,

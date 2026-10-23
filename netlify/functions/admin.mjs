@@ -1,5 +1,5 @@
 import {
-    SONGS_PER_COLLECTION, checkPassword, clearCookie, deleteAudio, findCollection, isAdmin,
+    ABOUT_KINDS, SONGS_PER_COLLECTION, checkPassword, clearCookie, deleteAudio, findCollection, isAdmin,
     json, readCatalog, sessionCookie, slug, store, writeCatalog
 } from '../lib/common.mjs';
 
@@ -56,7 +56,7 @@ export default async (req) => {
         return json({ ok: true });
     }
 
-    // Create a song if new, or update its lyrics: { collectionId, title, lyrics? }
+    // Create a song if new, or update its About text: { collectionId, title, lyrics?, aboutKind? }
     if (route === 'song' && method === 'POST') {
         const c = findCollection(catalog, body.collectionId);
         if (!c) return json({ error: 'Unknown collection' }, 404);
@@ -71,17 +71,21 @@ export default async (req) => {
             c.songs[id] = song;
             c.order.push(id);
         }
-        if (typeof body.lyrics === 'string' && body.lyrics.trim()) song.lyrics = body.lyrics.trim();
+        if (typeof body.lyrics === 'string' && body.lyrics.trim()) {
+            song.lyrics = body.lyrics.trim();
+            if (ABOUT_KINDS.includes(body.aboutKind)) song.aboutKind = body.aboutKind;
+        }
         await writeCatalog(catalog);
         return json({ song });
     }
 
-    // Edit a song: { collectionId, songId, title?, lyrics? }
+    // Edit a song: { collectionId, songId, title?, lyrics?, aboutKind? }
     if (route === 'song' && method === 'PATCH') {
         const song = findCollection(catalog, body.collectionId)?.songs[body.songId];
         if (!song) return json({ error: 'Unknown song' }, 404);
         if (typeof body.title === 'string' && body.title.trim()) song.title = body.title.trim();
         if (typeof body.lyrics === 'string') song.lyrics = body.lyrics.trim();
+        if (ABOUT_KINDS.includes(body.aboutKind)) song.aboutKind = body.aboutKind;
         await writeCatalog(catalog);
         return json({ song });
     }

@@ -205,6 +205,19 @@
             align-items: center;
         }
 
+        select {
+            padding: 6px 8px;
+            font: inherit;
+            font-size: 12px;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid var(--line-soft);
+        }
+
+        select option {
+            color: #000;
+        }
+
         input[type="text"], input[type="password"], textarea {
             width: 100%;
             padding: 10px 12px;
@@ -613,7 +626,7 @@
                 </div>
                 <div class="drop" id="drop">
                     <strong>Drop a collection folder or song files</strong>
-                    <p>Name files <code>[collection]_[track name]_A.mp3</code>, <code>…_B.mp3</code> and, optionally, <code>…_lyrics.txt</code>.<br>
+                    <p>Name files <code>[collection]_[track name]_A.mp3</code>, <code>…_B.mp3</code> and, optionally, an About text: <code>…_lyrics.txt</code>, <code>…_story.txt</code>, <code>…_versions.txt</code> or <code>…_notes.txt</code>.<br>
                         Example: <code>vol03_Copper Light_A.wav</code></p>
                     <div class="row" style="justify-content:center">
                         <button class="btn ghost small" type="button" id="pickFiles">Choose files</button>
@@ -688,6 +701,10 @@
         ];
 
         const $ = (id) => document.getElementById(id);
+        // What a song's "About this song" text is. Version notes stay hidden from listeners until they vote.
+        const ABOUT_KINDS = { lyrics: 'Lyrics', story: 'Story', versions: 'How the versions differ', notes: 'Notes' };
+        const aboutSelect = (value) => `<select data-about-kind aria-label="Type of About text">${Object.entries(ABOUT_KINDS)
+            .map(([k, label]) => `<option value="${k}" ${k === (value || 'lyrics') ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
         let catalog = { collections: [] };
         let songsPerCollection = 10;
         let batch = new Map(); // collectionId → { id, folders:Set, songs: Map }
@@ -823,7 +840,7 @@
             const dot = file.name.lastIndexOf('.');
             const base = dot > 0 ? file.name.slice(0, dot) : file.name;
             const parts = base.split('_');
-            if (parts.length < 3) return { error: 'expected [collection]_[track name]_[A|B|lyrics]' };
+            if (parts.length < 3) return { error: 'expected [collection]_[track name]_[A|B|lyrics|story|versions|notes]' };
             const collectionId = slug(parts[0]);
             const kind = parts[parts.length - 1].trim().toLowerCase();
             // Underscores inside the track name read as spaces: vol03_Slow_Burn_A → "Slow Burn".
@@ -833,11 +850,11 @@
                 if (!AUDIO_EXT.test(file.name)) return { error: 'A/B files must be audio (mp3, m4a, wav, flac, aac, ogg, aiff)' };
                 return { collectionId, title, kind: kind.toUpperCase() };
             }
-            if (kind === 'lyrics') {
-                if (!TEXT_EXT.test(file.name)) return { error: 'lyrics must be a .txt or .md file' };
-                return { collectionId, title, kind: 'lyrics' };
+            if (ABOUT_KINDS[kind] || kind === 'about') {
+                if (!TEXT_EXT.test(file.name)) return { error: 'About texts must be .txt or .md files' };
+                return { collectionId, title, kind: 'about', aboutKind: kind === 'about' ? 'notes' : kind };
             }
-            return { error: `last part must be A, B or lyrics (found "${parts[parts.length - 1]}")` };
+            return { error: `last part must be A, B, lyrics, story, versions or notes (found "${parts[parts.length - 1]}")` };
         }
 
         async function addFiles(items) {
@@ -854,9 +871,10 @@
                 if (folder) group.folders.add(folder);
                 const key = slug(parsed.title);
                 let row = group.songs.get(key);
-                if (!row) group.songs.set(key, row = { title: parsed.title, A: null, B: null, lyrics: '', lyricsFromFile: false, state: 'ready', note: '', progress: 0 });
-                if (parsed.kind === 'lyrics') {
+                if (!row) group.songs.set(key, row = { title: parsed.title, A: null, B: null, lyrics: '', aboutKind: 'lyrics', lyricsFromFile: false, state: 'ready', note: '', progress: 0 });
+                if (parsed.kind === 'about') {
                     row.lyrics = (await file.text()).replace(/\r\n/g, '\n').trim();
+                    row.aboutKind = parsed.aboutKind;
                     row.lyricsFromFile = true;
                 } else {
                     row[parsed.kind] = file;
@@ -926,7 +944,7 @@
                         }
                         const willHaveA = row.A || song?.v1, willHaveB = row.B || song?.v2;
                         if (!willHaveA || !willHaveB) notes.push(['warn', `Goes live once version ${willHaveA ? 'B' : 'A'} is uploaded.`]);
-                        if (!row.A && !row.B) notes.push(['', 'Updates the lyrics only.']);
+                        if (!row.A && !row.B) notes.push(['', 'Updates the About text only.']);
                     }
                     row.notes = notes;
                 }
@@ -951,15 +969,16 @@
                         <div class="chips">
                             <span class="chip ${r.A ? 'on' : ''}">A${r.A ? ` · ${mb(r.A.size)}` : ''}</span>
                             <span class="chip ${r.B ? 'on' : ''}">B${r.B ? ` · ${mb(r.B.size)}` : ''}</span>
-                            <span class="chip ${r.lyrics ? 'on' : ''}">LYRICS</span>
+                            <span class="chip ${r.lyrics ? 'on' : ''}">ABOUT</span>
                             ${['ready', 'invalid'].includes(r.state) && !uploading ? `<button class="chip" data-remove title="Remove from this upload">✕</button>` : ''}
                         </div>
                         ${(r.notes || []).map(([cls, t]) => `<div class="note ${cls}">${esc(t)}</div>`).join('')}
                         ${r.note ? `<div class="note ${r.state === 'error' ? 'bad' : r.state === 'done' ? 'ok' : ''}">${esc(r.note)}</div>` : ''}
                         ${uploading || r.state === 'done' ? `<div class="bar"><i style="width:${(r.progress * 100).toFixed(1)}%"></i></div>` : ''}
                         ${['ready', 'invalid'].includes(r.state) ? `<details ${r.lyrics && !r.lyricsFromFile ? 'open' : ''}>
-                            <summary>${r.lyrics ? 'Lyrics' : 'Paste lyrics'}${r.lyricsFromFile ? ' (from file)' : ''}</summary>
-                            <textarea data-lyrics placeholder="Paste lyrics here (optional)">${esc(r.lyrics)}</textarea>
+                            <summary>About this song${r.lyrics ? ` · ${ABOUT_KINDS[r.aboutKind]}` : ' (optional)'}${r.lyricsFromFile ? ' (from file)' : ''}</summary>
+                            <div class="row" style="margin-top:8px">${aboutSelect(r.aboutKind)}</div>
+                            <textarea data-lyrics placeholder="Lyrics, the story behind it, how the two versions differ…">${esc(r.lyrics)}</textarea>
                         </details>` : ''}
                     </div>`).join('')}
                 </div>`;
@@ -975,11 +994,15 @@
         }
 
         $('groups').addEventListener('input', (e) => {
-            if (!e.target.matches('[data-lyrics]')) return;
+            if (!e.target.matches('[data-lyrics], [data-about-kind]')) return;
             const item = e.target.closest('.item');
             const row = batch.get(item.dataset.g).songs.get(item.dataset.k);
-            row.lyrics = e.target.value;
-            row.lyricsFromFile = false;
+            if (e.target.matches('[data-about-kind]')) {
+                row.aboutKind = e.target.value;
+            } else {
+                row.lyrics = e.target.value;
+                row.lyricsFromFile = false;
+            }
         });
         $('groups').addEventListener('click', (e) => {
             if (!e.target.closest('[data-remove]')) return;
@@ -1088,7 +1111,7 @@
                         const setNote = (t) => { row.note = t; renderBatch(); };
                         try {
                             setNote('Preparing…');
-                            let { song } = await api('/api/admin/song', { method: 'POST', body: { collectionId: group.id, title: row.title, lyrics: row.lyrics } });
+                            let { song } = await api('/api/admin/song', { method: 'POST', body: { collectionId: group.id, title: row.title, lyrics: row.lyrics, aboutKind: row.aboutKind } });
                             for (const k of ['A', 'B']) {
                                 const file = row[k];
                                 if (!file) continue;
@@ -1246,9 +1269,10 @@
                                 </div>
                             </div>
                             <details>
-                                <summary>Lyrics${s.lyrics ? '' : ' (none yet)'}</summary>
-                                <textarea data-lyrics>${esc(s.lyrics)}</textarea>
-                                <div class="row" style="margin-top:6px;justify-content:flex-end"><button class="btn small" data-act="save-lyrics">Save lyrics</button></div>
+                                <summary>About this song${s.lyrics ? ` · ${ABOUT_KINDS[s.aboutKind || 'lyrics']}` : ' (none yet)'}</summary>
+                                <div class="row" style="margin-top:8px">${aboutSelect(s.aboutKind)}</div>
+                                <textarea data-lyrics placeholder="Lyrics, the story behind it, how the two versions differ…">${esc(s.lyrics)}</textarea>
+                                <div class="row" style="margin-top:6px;justify-content:flex-end"><button class="btn small" data-act="save-lyrics">Save</button></div>
                             </details>
                         </li>`).join('')}
                     </ol>
@@ -1330,7 +1354,9 @@
                     }
                     break;
                 case 'save-lyrics':
-                    act('Lyrics saved.', () => api('/api/admin/song', { method: 'PATCH', body: { collectionId: c.id, songId, lyrics: li.querySelector('[data-lyrics]').value } }));
+                    act('About text saved.', () => api('/api/admin/song', { method: 'PATCH', body: {
+                        collectionId: c.id, songId, lyrics: li.querySelector('[data-lyrics]').value, aboutKind: li.querySelector('[data-about-kind]').value
+                    } }));
                     break;
             }
         });

@@ -23,7 +23,8 @@ export default async (req) => {
     if (!song) return json({ error: 'Unknown song' }, 404);
     if (!collection.theme) return json({ error: 'This collection has no art theme yet' }, 409);
 
-    const input = { theme: collection.theme, title: song.title, lyrics: song.lyrics };
+    // Notes on how the versions differ describe production, not mood, so they stay out of the prompt.
+    const input = { theme: collection.theme, title: song.title, lyrics: song.aboutKind === 'versions' ? '' : song.lyrics };
     let image, warning = null;
     if (mode !== 'generative' && process.env.GEMINI_API_KEY) {
         try {

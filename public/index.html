@@ -12,7 +12,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,700;1,700&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,700;1,700&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600&family=Newsreader:ital,opsz@0,6..72;1,6..72&display=swap" rel="stylesheet">
     <style>
         :root {
             --copper: #b87333;
@@ -27,6 +27,15 @@
             --ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
             --cond: 'Archivo Narrow', 'Arial Narrow', sans-serif;
             --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+            --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+            --paper: rgba(239, 233, 222, 0.94);
+            --ink: #2a2420;
+            --ink-soft: rgba(42, 36, 32, 0.55);
+            --rust: #8b4513;
+        }
+
+        [hidden] {
+            display: none !important;
         }
 
         * {
@@ -248,23 +257,67 @@
             padding: 12px 16px 14px;
         }
 
-        .lyrics {
-            font-size: 13px;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.86);
+        /* "About this song": a paper liner-notes card, deliberately unlike the glass song picker. */
+        .about {
+            color: var(--ink);
+            background-color: var(--paper);
+            background-image: radial-gradient(rgba(42, 36, 32, 0.05) 1px, transparent 1px);
+            background-size: 3px 3px;
+            border: 0;
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+        }
+
+        .about .panel-head {
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            padding: 12px 16px 10px;
+            border-bottom: 1px solid rgba(42, 36, 32, 0.16);
+        }
+
+        .about-body {
+            padding: 12px 16px 16px;
+        }
+
+        .about-kind {
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--rust);
+            margin-bottom: 6px;
+        }
+
+        .about-map {
+            font-family: var(--mono);
+            font-size: 10.5px;
+            line-height: 1.5;
+            color: var(--rust);
+            margin-bottom: 8px;
+        }
+
+        .about-text {
+            font-family: var(--serif);
+            font-size: 15px;
+            line-height: 1.5;
             white-space: pre-line;
-            max-height: 4.8em;
+            max-height: 4.5em;
             overflow: hidden;
             -webkit-mask-image: linear-gradient(#000 55%, transparent);
             mask-image: linear-gradient(#000 55%, transparent);
         }
 
-        .panel-left.expanded {
-            width: 380px;
-            background: var(--glass-strong);
+        .about-text.muted {
+            font-style: italic;
+            color: var(--ink-soft);
         }
 
-        .panel-left.expanded .lyrics {
+        .panel-left.expanded {
+            width: 380px;
+        }
+
+        .panel-left.expanded .about-text {
             max-height: min(58vh, 520px);
             overflow-y: auto;
             -webkit-mask-image: none;
@@ -830,9 +883,13 @@
                 padding: 10px 12px;
             }
 
-            .lyrics {
-                font-size: 12px;
-                max-height: 3.2em;
+            .about-text {
+                font-size: 13px;
+                max-height: 3em;
+            }
+
+            .about-body {
+                padding: 10px 12px 12px;
             }
 
             .dots {
@@ -890,21 +947,16 @@
             <svg id="hardware" viewBox="0 0 1600 900" aria-hidden="true"></svg>
         </div>
 
-        <!-- Lyrics -->
-        <section class="panel panel-left" id="lyricsPanel">
-            <button class="panel-head" id="lyricsToggle" aria-expanded="false" aria-controls="lyricsText">
-                <span>Lyrics</span>
-                <svg class="chev" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" fill="none" stroke="#fff" stroke-width="1.3"/></svg>
+        <!-- About this song -->
+        <section class="panel panel-left about" id="aboutPanel">
+            <button class="panel-head" id="aboutToggle" aria-expanded="false" aria-controls="aboutText">
+                <span>About this song</span>
+                <svg class="chev" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
             </button>
-            <div class="panel-song">
-                <div class="cover" id="lyricsCover"></div>
-                <div class="song-meta">
-                    <div class="song-title" id="lyricsTitle">–</div>
-                    <div class="song-sub" id="lyricsArtist"></div>
-                </div>
-            </div>
-            <div class="panel-foot">
-                <div class="lyrics" id="lyricsText" tabindex="0"></div>
+            <div class="about-body">
+                <div class="about-kind" id="aboutKind"></div>
+                <div class="about-map" id="aboutMap" hidden></div>
+                <div class="about-text" id="aboutText" tabindex="0"></div>
             </div>
         </section>
 
@@ -951,7 +1003,7 @@
             <button class="bar" id="barA" aria-pressed="false" aria-label="Play version A">
                 <span class="prog"><i id="progA"></i></span>
                 <svg class="state" id="stateA" viewBox="0 0 12 12"></svg>
-                <span>A</span>
+                <span>Play A</span>
                 <span class="time" id="timeA">0:00</span>
             </button>
             <button class="bar" id="barSelect" aria-label="Vote for A or B">
@@ -961,7 +1013,7 @@
             <button class="bar" id="barB" aria-pressed="false" aria-label="Play version B">
                 <span class="prog"><i id="progB"></i></span>
                 <svg class="state" id="stateB" viewBox="0 0 12 12"></svg>
-                <span>B</span>
+                <span>Play B</span>
                 <span class="time" id="timeB">0:00</span>
             </button>
         </div>
@@ -973,10 +1025,6 @@
                 <div class="sent" id="welcomeSent"></div>
                 <h1 style="margin-top:8px">AB/<em>no</em>CD</h1>
                 <p>Every song here comes in two versions. Switch between A and B as often as you like – each one picks up where you left it. When you know which you'd keep, hit <b>Select</b> and vote.</p>
-                <label class="field">
-                    <span>Your first name</span>
-                    <input type="text" id="listenerName" placeholder="First name" required maxlength="40">
-                </label>
                 <button class="cta" type="submit">Enter the room</button>
             </form>
         </div>
@@ -990,6 +1038,10 @@
                     <button type="button" class="choice" data-choice="A" aria-pressed="false"><b>A</b><small id="heardA"></small></button>
                     <button type="button" class="choice" data-choice="B" aria-pressed="false"><b>B</b><small id="heardB"></small></button>
                 </div>
+                <label class="field" id="voteNameField" hidden>
+                    <span>Your first name</span>
+                    <input type="text" id="voteName" placeholder="First name" maxlength="40" autocomplete="given-name">
+                </label>
                 <label class="field">
                     <span>Why? (optional)</span>
                     <textarea id="voteNote" maxlength="600" placeholder="What tipped it?"></textarea>
@@ -1074,7 +1126,7 @@
                     id: `${id}-${String(i + 1).padStart(2, '0')}`,
                     title: DEMO_TITLES[(offset + i) % DEMO_TITLES.length],
                     artist: 'KŮA · demo',
-                    lyrics: DEMO_LYRICS[seed % DEMO_LYRICS.length],
+                    about: { kind: 'lyrics', text: DEMO_LYRICS[seed % DEMO_LYRICS.length] },
                     v1: `demo:${seed}:1`,
                     v2: `demo:${seed}:2`
                 });
@@ -1942,6 +1994,9 @@
             $('heardB').textContent = `heard ${fmt(heard(decks.B))}`;
             $('voteNote').value = prior ? prior.note : '';
             $('voteSubmit').textContent = prior ? 'Update vote' : 'Submit vote';
+            const askName = !sessionNamed() || !store.name;
+            $('voteNameField').hidden = !askName;
+            if (askName) $('voteName').value = store.name || '';
             renderChoice();
             $('toast').classList.remove('show');
             $('vote').classList.add('open');
@@ -1965,14 +2020,37 @@
             next?.();
         }
 
+        // A first name is asked for at the first vote of each browser session, then reused.
+        function sessionNamed() {
+            try {
+                return sessionStorage.getItem('abnocd:named') === '1';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function markNamed() {
+            try {
+                sessionStorage.setItem('abnocd:named', '1');
+            } catch (e) {
+                // Session storage blocked – the name is asked for at every vote instead.
+            }
+        }
+
         function renderChoice() {
             document.querySelectorAll('.choice').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.choice === pendingChoice)));
-            $('voteSubmit').disabled = !pendingChoice;
+            $('voteSubmit').disabled = !pendingChoice || (!$('voteNameField').hidden && !$('voteName').value.trim());
         }
 
         function submitVote(e) {
             e.preventDefault();
             if (!pendingChoice || !song) return;
+            if (!$('voteNameField').hidden) {
+                const name = $('voteName').value.trim();
+                if (!name) return $('voteName').focus();
+                store.name = name;
+                markNamed();
+            }
             const d = decks[pendingChoice];
             const prior = store.votes[song.id];
             const note = $('voteNote').value.trim();
@@ -2062,11 +2140,7 @@
             const num = String(songIdx + 1).padStart(2, '0');
             const vote = store.votes[song.id];
 
-            $('lyricsCover').setAttribute('style', cover);
-            $('lyricsCover').textContent = song.cover ? '' : num;
-            $('lyricsTitle').textContent = song.title;
-            $('lyricsArtist').textContent = song.artist || '';
-            $('lyricsText').textContent = song.lyrics || 'No lyrics for this song yet.';
+            renderAbout(vote);
 
             $('pickerName').textContent = collection.name;
             $('pickerCover').setAttribute('style', cover);
@@ -2088,7 +2162,7 @@
                 const playing = isPlaying(decks[k]);
                 $('bar' + k).classList.toggle('active', active);
                 $('bar' + k).setAttribute('aria-pressed', String(active && playing));
-                $('state' + k).innerHTML = active ? (playing ? ICON_PAUSE : ICON_PLAY) : '';
+                $('state' + k).innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
             }
 
             const xf = $('xfader');
@@ -2097,6 +2171,25 @@
 
             renderTimes();
             renderGate();
+        }
+
+        const ABOUT_LABELS = { lyrics: 'Lyrics', story: 'Story', versions: 'How the versions differ', notes: 'Notes' };
+
+        function renderAbout(vote) {
+            const about = song.about || { kind: 'lyrics', text: '' };
+            const sealed = about.kind === 'versions' && !vote;
+            $('aboutKind').textContent = ABOUT_LABELS[about.kind] || 'Notes';
+            // Version notes refer to the uploaded A and B files; say how those mapped onto this listener's decks.
+            const map = about.kind === 'versions' && vote && about.text;
+            $('aboutMap').hidden = !map;
+            if (map) {
+                $('aboutMap').textContent = flipFor(song.id)
+                    ? 'You heard these swapped: version A was on your B deck, version B on your A deck.'
+                    : 'You heard version A on your A deck and version B on your B deck.';
+            }
+            const text = !about.text ? 'Nothing here yet.' : sealed ? 'How the two versions differ is revealed after you vote.' : about.text;
+            $('aboutText').textContent = text;
+            $('aboutText').classList.toggle('muted', !about.text || sealed);
         }
 
         function renderTimes() {
@@ -2122,7 +2215,7 @@
             let hint = '';
             const anyPlaying = isPlaying(decks.A) || isPlaying(decks.B);
             if (loading) hint = 'Pressing records…';
-            else if (!anyPlaying && !$('vote').classList.contains('open')) hint = vote ? `You picked ${vote.choice} · tap A or B to listen again` : live ? 'Paused · tap A or B' : 'Tap A or B to start listening';
+            else if (!anyPlaying && !$('vote').classList.contains('open')) hint = vote ? `You picked ${vote.choice} · press Play to listen again` : live ? 'Paused · press Play A or Play B' : 'Press Play A or Play B to start listening';
             else if (anyPlaying && ready && !vote) hint = 'Heard enough? Tap SELECT to vote';
             if ($('hint').textContent !== hint) $('hint').textContent = hint;
         }
@@ -2328,13 +2421,8 @@
                 $('welcomeSent').textContent = route.si !== -1 ? `You've been sent “${c.songs[route.si].title}”` : `You've been sent ${c.name}`;
             }
 
-            $('listenerName').value = store.name || '';
             $('welcomeForm').addEventListener('submit', (e) => {
                 e.preventDefault();
-                const name = $('listenerName').value.trim();
-                if (!name) return;
-                store.name = name;
-                saveStore();
                 audioCtx();
                 $('welcome').classList.remove('open');
                 if (route && route.ci !== -1) {
@@ -2358,17 +2446,17 @@
                 if (b && song && COLLECTIONS[b.dataset.c] !== collection) selectCollection(Number(b.dataset.c));
             });
 
-            $('lyricsToggle').addEventListener('click', () => {
-                const open = $('lyricsPanel').classList.toggle('expanded');
-                $('lyricsToggle').setAttribute('aria-expanded', String(open));
+            $('aboutToggle').addEventListener('click', () => {
+                const open = $('aboutPanel').classList.toggle('expanded');
+                $('aboutToggle').setAttribute('aria-expanded', String(open));
                 if (open) closeMenus();
             });
             $('pickerToggle').addEventListener('click', () => {
                 const open = $('pickerPanel').classList.toggle('open');
                 $('pickerToggle').setAttribute('aria-expanded', String(open));
                 if (open) {
-                    $('lyricsPanel').classList.remove('expanded');
-                    $('lyricsToggle').setAttribute('aria-expanded', 'false');
+                    $('aboutPanel').classList.remove('expanded');
+                    $('aboutToggle').setAttribute('aria-expanded', 'false');
                 }
             });
             $('pickerList').addEventListener('click', (e) => {
@@ -2387,6 +2475,7 @@
                 renderChoice();
             }));
             $('voteForm').addEventListener('submit', submitVote);
+            $('voteName').addEventListener('input', renderChoice);
             $('voteCancel').addEventListener('click', closeVote);
             $('thanksShare').addEventListener('click', () => share('song'));
             $('thanksNext').addEventListener('click', continueAfterVote);
@@ -2405,8 +2494,8 @@
                     if (!$('voteThanks').hidden) continueAfterVote();
                     else closeVote();
                     closeMenus();
-                    $('lyricsPanel').classList.remove('expanded');
-                    $('lyricsToggle').setAttribute('aria-expanded', 'false');
+                    $('aboutPanel').classList.remove('expanded');
+                    $('aboutToggle').setAttribute('aria-expanded', 'false');
                     return;
                 }
                 if ($('welcome').classList.contains('open') || $('vote').classList.contains('open') || e.metaKey || e.ctrlKey) return;
