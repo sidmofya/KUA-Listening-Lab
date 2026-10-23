@@ -1563,65 +1563,114 @@
         // d = 0 at the centre (deep bass) … 1 at the rim (bright slap).
         // ---------------------------------------------------------------
 
-        let drumBus = null, drumNoise = null;
+        let drumBus = null;
+        const drumNoise = new WeakMap(); // one white-noise buffer per AudioContext
 
-        function drumHit(d) {
-            const ctx = audioCtx();
-            if (!ctx) return;
+        function noiseFor(ctx) {
+            if (!drumNoise.has(ctx)) {
+                const buf = ctx.createBuffer(1, ctx.sampleRate / 2, ctx.sampleRate);
+                const data = buf.getChannelData(0);
+                for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+                drumNoise.set(ctx, buf);
+            }
+            return drumNoise.get(ctx);
+        }
+
+        // Its own path to the speakers, so the VU meters keep showing the song.
+        function drumOut(ctx) {
             if (!drumBus) {
-                // Its own path to the speakers, so the VU meters keep showing the song.
                 drumBus = ctx.createGain();
                 drumBus.gain.value = 0.8;
                 const comp = ctx.createDynamicsCompressor();
                 drumBus.connect(comp);
                 comp.connect(ctx.destination);
-                drumNoise = ctx.createBuffer(1, ctx.sampleRate / 2, ctx.sampleRate);
-                const data = drumNoise.getChannelData(0);
-                for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
             }
-            const t = ctx.currentTime + 0.005;
-            const vel = 0.9 + Math.random() * 0.2;
-            const f0 = (70 + 260 * Math.pow(d, 1.3)) * (1 + (Math.random() - 0.5) * 0.04);
-            const decay = 0.6 - 0.48 * d;
+            return drumBus;
+        }
 
-            const env = (peak, len) => {
+        // Builds one hit into any context (the live one, or an offline one for testing).
+        function drumHit(d, ctx = audioCtx(), out = ctx && drumOut(ctx), when = ctx && ctx.currentTime + 0.005) {
+            if (!ctx) return;
+            const t = when;
+            const b = (1 - d) ** 2; // bass weight: strongest at the centre, gone by mid-disc
+            const s = d ** 3;       // slap weight: concentrated at the very rim
+            const vel = 0.9 + Math.random() * 0.2;
+            const f0 = (55 + 365 * Math.pow(d, 1.25)) * (1 + (Math.random() - 0.5) * 0.04); // 55 Hz → 420 Hz
+            const decay = 1.0 - 0.93 * Math.pow(d, 0.7); // 1 s boom → 70 ms slap
+
+            const env = (peak, len, attack = 0.004, dest = out) => {
                 const g = ctx.createGain();
                 g.gain.setValueAtTime(0.0001, t);
-                g.gain.exponentialRampToValueAtTime(peak, t + 0.004);
+                g.gain.exponentialRampToValueAtTime(peak, t + attack);
                 g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-                g.connect(drumBus);
+                g.connect(dest);
                 return g;
             };
+            const noise = (len, ...filters) => {
+                const src = ctx.createBufferSource();
+                src.buffer = noiseFor(ctx);
+                let node = src;
+                for (const [type, freq, q = 0.7] of filters) {
+                    const f = ctx.createBiquadFilter();
+                    f.type = type;
+                    f.frequency.value = freq;
+                    f.Q.value = q;
+                    if (type === 'peaking') f.gain.value = 12; // ring at the crack's pitch
+                    node.connect(f);
+                    node = f;
+                }
+                src.start(t, Math.random() * 0.3);
+                src.stop(t + len + 0.02);
+                return node;
+            };
 
-            // Membrane: pitch dips just after the strike, as a struck skin does.
+            // Membrane: a fast downward swoop then a long ring, the djembe bass "whoomp".
+            // A soft clip adds harmonics so the boom carries on phone and laptop speakers.
+            const shaper = ctx.createWaveShaper();
+            const k = 1 + 5 * b, curve = new Float32Array(1024);
+            for (let i = 0; i < curve.length; i++) curve[i] = Math.tanh(k * (i / 511.5 - 1)) / Math.tanh(k);
+            shaper.curve = curve;
+            shaper.oversample = '2x';
+            const post = ctx.createGain();
+            post.gain.value = 0.9 - 0.25 * b;
+            shaper.connect(post);
+            post.connect(out);
             const body = ctx.createOscillator();
-            body.frequency.setValueAtTime(f0 * 1.6, t);
-            body.frequency.exponentialRampToValueAtTime(f0, t + 0.03);
+            body.frequency.setValueAtTime(f0 * (1.6 + 0.8 * b), t);
+            body.frequency.exponentialRampToValueAtTime(f0, t + 0.03 + 0.03 * b);
             body.frequency.exponentialRampToValueAtTime(f0 * 0.85, t + decay);
-            body.connect(env(0.9 * vel * (1 - 0.35 * d), decay));
+            body.connect(env((0.8 + 0.35 * b) * vel * (1 - 0.3 * d), decay, 0.004, shaper));
             body.start(t);
             body.stop(t + decay + 0.05);
 
-            // Inharmonic overtone for the hand-drum colour.
+            // Sub an octave down for chest weight at the centre.
+            if (b > 0.05) {
+                const sub = ctx.createOscillator();
+                sub.frequency.setValueAtTime(f0, t);
+                sub.frequency.exponentialRampToValueAtTime(f0 * 0.5, t + 0.08);
+                sub.connect(env(0.35 * b * vel, decay * 0.9));
+                sub.start(t);
+                sub.stop(t + decay);
+            }
+
+            // Inharmonic overtone for the hand-drum colour; shorter toward the rim.
             const skin = ctx.createOscillator();
             skin.type = 'triangle';
             skin.frequency.setValueAtTime(f0 * 1.59, t);
             skin.frequency.exponentialRampToValueAtTime(f0 * 1.5, t + decay * 0.6);
-            skin.connect(env(0.25 * vel * (0.4 + 0.6 * d), decay * 0.6));
+            skin.connect(env(0.22 * vel * (0.4 + 0.6 * d), decay * (0.6 - 0.3 * s)));
             skin.start(t);
             skin.stop(t + decay);
 
-            // Hand on skin: a soft thump at the centre, a bright crack at the rim.
-            const noise = ctx.createBufferSource();
-            noise.buffer = drumNoise;
-            const band = ctx.createBiquadFilter();
-            band.type = 'bandpass';
-            band.frequency.value = 600 + 3400 * Math.pow(d, 1.5);
-            band.Q.value = 0.8 + 2 * d;
-            noise.connect(band);
-            band.connect(env((0.15 + 0.65 * d * d) * vel, 0.02 + 0.06 * d));
-            noise.start(t, Math.random() * 0.3);
-            noise.stop(t + 0.12);
+            // Palm thud at the centre.
+            if (b > 0.05) noise(0.08, ['lowpass', 180]).connect(env(0.6 * b * vel, 0.07, 0.003));
+            // Hand contact through the middle of the disc.
+            noise(0.05, ['bandpass', 900 + 1500 * d, 1]).connect(env(0.18 * vel * (1 - b) * (1 - s) + 0.02, 0.045));
+            // Rim slap: a resonant high crack plus a 2 ms click so it snaps rather than hisses.
+            if (s > 0.02) {
+                noise(0.07, ['highpass', 1800], ['peaking', 3400, 2], ['lowpass', 7000]).connect(env(0.9 * s * vel, 0.055, 0.001));
+                noise(0.01, ['highpass', 5000]).connect(env(1.2 * s * vel, 0.006, 0.0005));
+            }
         }
 
         function drumRipple(x, y, d) {
