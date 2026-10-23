@@ -64,7 +64,7 @@ export async function aiCover(prompt) {
 // ---------------------------------------------------------------
 // AI covers via OpenAI (preferred when OPENAI_API_KEY is set)
 //
-// gpt-image-1 often needs 10–40 s, longer than Netlify lets a function run,
+// Image models often need 10–40 s, longer than Netlify lets a function run,
 // so the job runs in OpenAI's background mode: one call starts it and short
 // follow-up calls collect the result.
 // ---------------------------------------------------------------
@@ -83,6 +83,7 @@ function openAIMessage(message) {
     if (/verif/i.test(m)) return 'OpenAI needs your organization verified before it makes images (platform.openai.com → Settings → Organization → Verify)';
     if (/billing|quota|credit|insufficient/i.test(m)) return 'Your OpenAI account has no credits for image generation (platform.openai.com → Billing)';
     if (/safety|moderation|policy/i.test(m)) return 'OpenAI declined this prompt on safety grounds';
+    if (/does not exist|model_not_found/i.test(m)) return `OpenAI doesn't offer that image model to this key (${m}); set OPENAI_IMAGE_MODEL to one it lists`;
     return m || 'OpenAI image generation failed';
 }
 
@@ -96,7 +97,16 @@ export async function startOpenAICover(prompt) {
             background: true,
             store: true,
             input: prompt,
-            tools: [{ type: 'image_generation', size: '1024x1024', quality: process.env.OPENAI_IMAGE_QUALITY || 'medium' }],
+            // Name the image model explicitly: the tool's default (gpt-image-1) has been retired and fails with a generic server error.
+            // JPEG keeps covers around 200 KB instead of multi-megabyte PNGs.
+            tools: [{
+                type: 'image_generation',
+                model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2',
+                size: '1024x1024',
+                quality: process.env.OPENAI_IMAGE_QUALITY || 'medium',
+                output_format: 'jpeg',
+                output_compression: 85
+            }],
             tool_choice: { type: 'image_generation' }
         })
     });
@@ -119,7 +129,7 @@ export async function pollOpenAICover(id) {
     }
     const call = (data.output || []).find((o) => o.type === 'image_generation_call' && o.result);
     if (!call) throw new Error('OpenAI returned no image (possibly blocked by its safety filters)');
-    return { bytes: Buffer.from(call.result, 'base64'), type: 'image/png', source: 'openai' };
+    return { bytes: Buffer.from(call.result, 'base64'), type: 'image/jpeg', source: 'openai' };
 }
 
 // ---------------------------------------------------------------
