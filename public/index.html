@@ -1947,8 +1947,12 @@
             return actx;
         }
 
+        // iOS suspends Web Audio when the phone locks, which would stop the music,
+        // so there the decks play straight from the media element (simulated meters).
+        const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
         function makeDeck(key) {
-            return { key, el: null, version: null, analysable: false, src: null, gain: null, an: null, buf: null, vol: 1, volTarget: 1, pauseWhenSilent: false, angle: key === 'A' ? 40 : 200, speed: 0 };
+            return { key, el: null, player: null, meta: null, version: null, analysable: false, src: null, gain: null, an: null, buf: null, vol: 1, volTarget: 1, pauseWhenSilent: false, angle: key === 'A' ? 40 : 200, speed: 0 };
         }
 
         const decks = { A: makeDeck('A'), B: makeDeck('B') };
@@ -1959,52 +1963,91 @@
             return !!(d.el && !d.el.paused && !d.pauseWhenSilent);
         }
 
-        function disposeDeck(d) {
-            if (d.el) {
-                d.el.pause();
-                d.el.removeAttribute('src');
-                d.el.load();
-            }
-            if (d.src) {
-                try { d.src.disconnect(); } catch (e) { /* already disconnected */ }
-            }
-            Object.assign(d, { el: null, version: null, posKey: null, analysable: false, src: null, gain: null, an: null, buf: null, vol: 1, volTarget: 1, pauseWhenSilent: false });
-        }
-
-        function attachDeck(d, url, version, songId, rev) {
-            disposeDeck(d);
+        // One long-lived player per deck: a phone lets an element that has already
+        // played take the next song while locked, but often blocks a brand-new one.
+        function playerFor(d) {
+            if (d.player) return d.player;
             const el = new Audio();
             el.preload = 'auto';
-            d.el = el;
-            d.version = version;
-            // Replacing a version in the Studio changes its rev, so stale positions are ignored.
-            d.posKey = rev ? `${version}@${rev}` : version;
-            const sameOrigin = url.startsWith('blob:') || new URL(url, location.href).origin === location.origin;
-            let retried = false;
-            d.analysable = sameOrigin;
-            // Ask for CORS so the analyser can read the signal; fall back to plain playback if refused.
-            if (!sameOrigin) el.crossOrigin = 'anonymous';
             el.addEventListener('error', () => {
-                if (d.el !== el) return;
-                if (!sameOrigin && !retried) {
-                    retried = true;
+                const m = d.meta;
+                if (!m || d.el !== el) return;
+                // Ask for CORS so the analyser can read the signal; fall back to plain playback if refused.
+                if (!m.sameOrigin && !m.retried) {
+                    m.retried = true;
                     el.removeAttribute('crossorigin');
-                    el.src = url;
+                    el.src = m.url;
                     el.load();
                 } else {
                     toast(`Couldn't load version ${d.key}.`);
                 }
             });
             el.addEventListener('loadedmetadata', () => {
-                if (d.el !== el) return;
-                d.analysable = sameOrigin || !retried;
+                const m = d.meta;
+                if (!m || d.el !== el) return;
+                d.analysable = !IOS && (m.sameOrigin || !m.retried);
                 if (!el.paused) wire(d);
-                const p = store.pos[songId]?.[d.posKey];
+                const p = store.pos[m.songId]?.[d.posKey];
                 if (p && p < el.duration - 1) el.currentTime = p;
                 renderTimes();
             });
-            el.addEventListener('ended', () => onDeckEnded(d));
+            el.addEventListener('ended', () => d.el === el && onDeckEnded(d));
+            el.addEventListener('timeupdate', () => d.el === el && backgroundTick(d));
+            d.player = el;
+            return el;
+        }
+
+        function disposeDeck(d) {
+            if (d.el) d.el.pause();
+            // The player (and its Web Audio wiring) is kept for the next song.
+            Object.assign(d, { el: null, meta: null, version: null, posKey: null, vol: 1, volTarget: 1, pauseWhenSilent: false });
+        }
+
+        function attachDeck(d, url, version, songId, rev) {
+            disposeDeck(d);
+            const sameOrigin = url.startsWith('blob:') || new URL(url, location.href).origin === location.origin;
+            // A wired player would play a non-CORS source as silence, so start a fresh one.
+            if (d.src && !sameOrigin) {
+                try { d.src.disconnect(); } catch (e) { /* already disconnected */ }
+                Object.assign(d, { player: null, src: null, gain: null, an: null, buf: null });
+            }
+            const el = playerFor(d);
+            d.el = el;
+            d.meta = { url, songId, sameOrigin, retried: false };
+            d.version = version;
+            // Replacing a version in the Studio changes its rev, so stale positions are ignored.
+            d.posKey = rev ? `${version}@${rev}` : version;
+            d.analysable = !IOS && sameOrigin;
+            d.lastT = 0;
+            if (!sameOrigin && !d.src) el.crossOrigin = 'anonymous';
+            else el.removeAttribute('crossorigin');
             el.src = url;
+        }
+
+        // With the screen off there are no animation frames, so volume changes land at once
+        // and listening time and positions are kept from the player's own clock.
+        function settle(d) {
+            if (!document.hidden || !d.el) return;
+            d.vol = d.volTarget;
+            applyVol(d);
+            if (d.pauseWhenSilent && d.vol <= 0) {
+                d.el.pause();
+                d.pauseWhenSilent = false;
+                savePositions();
+            }
+        }
+
+        let backgroundSaved = 0;
+        function backgroundTick(d) {
+            const t = d.el.currentTime, step = t - (d.lastT || t);
+            d.lastT = t;
+            if (!document.hidden || !song || d.el.paused || d.el.seeking || !(step > 0 && step < 2)) return;
+            const h = store.heard[song.id] || (store.heard[song.id] = {});
+            h[d.version] = (h[d.version] || 0) + step;
+            if (Date.now() - backgroundSaved > 5000) {
+                backgroundSaved = Date.now();
+                savePositions();
+            }
         }
 
         function wire(d) {
@@ -2045,6 +2088,7 @@
                 if (d.el && !d.el.paused && !d.pauseWhenSilent) {
                     d.volTarget = on ? DUCK_LEVEL : 1;
                     d.fadeSec = 0.45; // a deliberate dip, not a cut
+                    settle(d);
                 }
             }
         }
@@ -2070,6 +2114,7 @@
             d.fadeSec = 0.12;
             d.pauseWhenSilent = false;
             applyVol(d);
+            settle(d);
             const p = d.el.play();
             if (p) p.catch((err) => {
                 if (err.name !== 'AbortError') toast('Playback was blocked – tap again.');
@@ -2082,6 +2127,7 @@
             d.volTarget = 0;
             d.fadeSec = 0.12;
             d.pauseWhenSilent = true;
+            settle(d);
         }
 
         // keepView: leave the camera where it is (room view during continuous play).
@@ -2518,6 +2564,54 @@
 
             renderTimes();
             renderGate();
+            updateMediaSession();
+        }
+
+        // ---------------------------------------------------------------
+        // Lock-screen / Control Centre controls (Media Session API)
+        // ---------------------------------------------------------------
+
+        let mediaKey = '';
+
+        function updateMediaSession() {
+            const ms = navigator.mediaSession;
+            if (!ms || !song || typeof MediaMetadata === 'undefined') return;
+            const key = `${song.id}|${live || ''}`;
+            if (key !== mediaKey) {
+                mediaKey = key;
+                const art = [song.cover, CONFIG.sceneImage].filter(Boolean).map((src) => ({ src: new URL(src, location.href).href, sizes: '1024x1024', type: 'image/jpeg' }));
+                ms.metadata = new MediaMetadata({
+                    title: song.title,
+                    artist: `${song.artist || 'KŮA'}${live ? ` · version ${live}` : ''}`,
+                    album: `AB/noCD · ${collection.name}`,
+                    artwork: art
+                });
+            }
+            ms.playbackState = live && isPlaying(decks[live]) ? 'playing' : 'paused';
+        }
+
+        function initMediaSession() {
+            const ms = navigator.mediaSession;
+            if (!ms) return;
+            const on = (action, fn) => {
+                try { ms.setActionHandler(action, fn); } catch (e) { /* action not supported here */ }
+            };
+            on('play', () => {
+                const k = live || 'A';
+                if (!isPlaying(decks[k])) pressDeck(k, { keepView: true });
+            });
+            on('pause', () => {
+                if (live && isPlaying(decks[live])) {
+                    fadeOut(decks[live]);
+                    updateUI();
+                }
+            });
+            on('nexttrack', () => {
+                if (song && songIdx + 1 < collection.songs.length) selectSong(songIdx + 1, { autoplay: true, keepView: view === 'wide' });
+            });
+            on('previoustrack', () => {
+                if (song && songIdx > 0) selectSong(songIdx - 1, { autoplay: true, keepView: view === 'wide' });
+            });
         }
 
         const ABOUT_LABELS = { lyrics: 'Lyrics', story: 'Story', versions: 'How the versions differ', notes: 'Notes' };
@@ -2896,6 +2990,16 @@
             });
 
             initDrum();
+            initMediaSession();
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    Object.values(decks).forEach(settle);
+                    savePositions();
+                } else {
+                    lastFrame = performance.now();
+                    updateUI();
+                }
+            });
             window.addEventListener('resize', () => applyCamera(false));
             window.addEventListener('pagehide', savePositions);
 
