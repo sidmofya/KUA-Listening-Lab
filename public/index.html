@@ -2035,10 +2035,39 @@
             else if (d.el) d.el.volume = d.vol;
         }
 
+        // While the vote card is open the music keeps playing, ducked to this level.
+        const DUCK_LEVEL = 0.25;
+        let ducked = false, voteReturn = null;
+
+        function setDuck(on) {
+            ducked = on;
+            for (const d of Object.values(decks)) {
+                if (d.el && !d.el.paused && !d.pauseWhenSilent) {
+                    d.volTarget = on ? DUCK_LEVEL : 1;
+                    d.fadeSec = 0.45; // a deliberate dip, not a cut
+                }
+            }
+        }
+
+        // Back from the vote: full volume, camera where the listener left it.
+        function restoreFromVote() {
+            setDuck(false);
+            if (voteReturn) {
+                const back = voteReturn.view === 'wide' ? 'wide' : (live || voteReturn.view);
+                if (back !== view) {
+                    view = back;
+                    applyCamera();
+                }
+            }
+            voteReturn = null;
+            updateUI();
+        }
+
         function startDeck(d) {
             wire(d);
             d.vol = 0;
-            d.volTarget = 1;
+            d.volTarget = ducked ? DUCK_LEVEL : 1;
+            d.fadeSec = 0.12;
             d.pauseWhenSilent = false;
             applyVol(d);
             const p = d.el.play();
@@ -2051,6 +2080,7 @@
         function fadeOut(d) {
             if (!d.el || d.el.paused) return;
             d.volTarget = 0;
+            d.fadeSec = 0.12;
             d.pauseWhenSilent = true;
         }
 
@@ -2111,6 +2141,7 @@
                 toast('Now playing the other version');
                 return;
             }
+            if ($('vote').classList.contains('open')) return updateUI(); // don't swap the song being voted on
             if (songIdx + 1 < collection.songs.length) {
                 toast(`Up next: ${collection.songs[songIdx + 1].title}`);
                 selectSong(songIdx + 1, { autoplay: true, keepView });
@@ -2183,10 +2214,10 @@
             if (autoplay) pressDeck('A', { keepView, auto: true });
         }
 
-        function selectCollection(ci) {
+        function selectCollection(ci, options) {
             collection = COLLECTIONS[ci];
             const next = collection.songs.findIndex((s) => !store.votes[s.id]);
-            selectSong(next === -1 ? 0 : next);
+            selectSong(next === -1 ? 0 : next, options);
         }
 
         // ---------------------------------------------------------------
@@ -2276,8 +2307,9 @@
                 toast(`Give each version ${MIN_LISTEN} seconds first – ${parts.join(', ')}.`);
                 return;
             }
-            Object.values(decks).forEach(fadeOut);
-            live = null;
+            // Keep the music going underneath, just quieter.
+            voteReturn = { view };
+            setDuck(true);
             view = 'wide';
             applyCamera();
             closeMenus();
@@ -2312,7 +2344,13 @@
             const next = afterVote;
             afterVote = null;
             closeVote();
-            next?.();
+            if (next) next();
+            else restoreFromVote();
+        }
+
+        function keepListening() {
+            closeVote();
+            restoreFromVote();
         }
 
         // A first name is asked for at the first vote of each browser session, then reused.
@@ -2372,7 +2410,13 @@
                 afterVote = null;
                 $('thanksNext').textContent = 'Back to the room';
             } else if (target !== -1) {
-                afterVote = () => selectSong(target);
+                afterVote = () => {
+                    // Straight into the next song, no Play press needed.
+                    const keepView = voteReturn?.view === 'wide';
+                    ducked = false;
+                    voteReturn = null;
+                    selectSong(target, { autoplay: true, keepView });
+                };
                 $('thanksNext').textContent = `Next song: ${collection.songs[target].title} →`;
             } else {
                 afterVote = showDone;
@@ -2532,6 +2576,7 @@
                 const offscreen = view !== 'wide' && $('stage').clientWidth < $('stage').clientHeight;
                 hint = offscreen ? 'Psst – slide to the middle, then tap the circle to drum along' : 'Psst – tap the circle on the wall to drum along';
             }
+            if ($('vote').classList.contains('open')) hint = '';
             if ($('hint').textContent !== hint) $('hint').textContent = hint;
         }
 
@@ -2562,7 +2607,7 @@
 
             for (const d of Object.values(decks)) {
                 if (d.el && d.vol !== d.volTarget) {
-                    const step = dt / 0.12;
+                    const step = dt / (d.fadeSec || 0.12);
                     d.vol = d.vol < d.volTarget ? Math.min(d.volTarget, d.vol + step) : Math.max(d.volTarget, d.vol - step);
                     applyVol(d);
                 }
@@ -2598,9 +2643,10 @@
                     const pulse = Math.pow(Math.max(0, Math.sin(clock * Math.PI * 2 * 0.8)), 6);
                     tL = 0.52 + 0.14 * Math.sin(clock * 2.1) + 0.08 * Math.sin(clock * 5.3 + 1) + 0.18 * pulse;
                     tR = 0.5 + 0.14 * Math.sin(clock * 1.9 + 0.7) + 0.08 * Math.sin(clock * 6.1) + 0.16 * pulse;
+                    // The analyser already hears volume changes; only the simulation needs scaling.
+                    tL *= src.vol;
+                    tR *= src.vol;
                 }
-                tL *= src.vol;
-                tR *= src.vol;
             }
             const tau = src ? 0.3 : 0.6;
             const k = 1 - Math.exp(-dt / tau);
@@ -2810,7 +2856,7 @@
             }));
             $('voteForm').addEventListener('submit', submitVote);
             $('voteName').addEventListener('input', renderChoice);
-            $('voteCancel').addEventListener('click', closeVote);
+            $('voteCancel').addEventListener('click', keepListening);
             $('thanksShare').addEventListener('click', () => share('song'));
             $('thanksNext').addEventListener('click', continueAfterVote);
             $('shareSong').addEventListener('click', () => share('song'));
@@ -2818,15 +2864,21 @@
 
             $('doneNext').addEventListener('click', () => {
                 $('done').classList.remove('open');
-                selectCollection(Number($('doneNext').dataset.c));
+                const fromVote = !!voteReturn;
+                ducked = false;
+                voteReturn = null;
+                selectCollection(Number($('doneNext').dataset.c), { autoplay: fromVote });
             });
-            $('doneStay').addEventListener('click', () => $('done').classList.remove('open'));
+            $('doneStay').addEventListener('click', () => {
+                $('done').classList.remove('open');
+                restoreFromVote();
+            });
 
             document.addEventListener('keydown', (e) => {
                 if (e.target.closest('input, textarea')) return;
                 if (e.key === 'Escape') {
                     if (!$('voteThanks').hidden) continueAfterVote();
-                    else closeVote();
+                    else if ($('vote').classList.contains('open')) keepListening();
                     closeMenus();
                     $('aboutPanel').classList.remove('expanded');
                     $('aboutToggle').setAttribute('aria-expanded', 'false');
