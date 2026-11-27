@@ -16,7 +16,7 @@
       "image": "/assets/skins/harmonic-plains.jpg",
       "accent": "#b8963e",
       "accentLight": "#dcc27a",
-      "drum": { "ripple": "#f3e1a6", "glow": "#fff3cf" }
+      "drum": { "ripple": "#f3e1a6", "glow": "#fff3cf", "art": { "strength": 0.42 } }
     },
     {
       "id": "rhythmic-ridge",
@@ -52,7 +52,7 @@
       "image": "/assets/skins/vibrato-valleys.jpg",
       "accent": "#3f8f96",
       "accentLight": "#8fd3d6",
-      "drum": { "ripple": "#a8eef0", "glow": "#dffbfb" }
+      "drum": { "ripple": "#a8eef0", "glow": "#dffbfb", "art": { "strength": 0.28 } }
     }
   ]
 }
