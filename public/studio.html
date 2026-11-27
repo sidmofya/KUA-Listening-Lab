@@ -595,6 +595,11 @@
             border-color: var(--bad);
         }
 
+        .cap-line.est input[data-cap-t] {
+            border-color: var(--warn);
+            color: var(--warn);
+        }
+
         .cap-line.now input[data-cap-text] {
             border-color: var(--copper-lt);
         }
@@ -1481,7 +1486,9 @@
                     <button class="btn ghost small" data-cap="tap" ${st.busy ? 'disabled' : ''} title="Paste lyrics and tap as each line starts">Tap to time</button>
                 </div>`;
             const notes = [
+                lyricsOf(s) ? '<p class="note">Words come from this song\'s lyrics file (About text); Generate works out the timing. Without lyrics, the AI writes the words too.</p>' : '',
                 st.status ? `<p class="note">${esc(st.status)}</p>` : '',
+                lines?.some((l) => l.est) && !st.tap ? '<p class="note warn">Times in amber are estimates – play around them and fix with ⏱.</p>' : '',
                 stale ? `<p class="note warn">Version ${VER_LABEL[v]}'s audio was replaced after these captions were made; timings may be off. Generate again or retime.</p>` : '',
                 st.dirty[v] ? '<p class="note warn">Unsaved changes – press Save to publish them.</p>' : ''
             ].join('');
@@ -1507,7 +1514,7 @@
             } else if (!lines?.length) {
                 main = `<p class="note">No captions for version ${VER_LABEL[v]} yet. Generate them, or tap them in time with your own lyrics.</p>`;
             } else {
-                main = `<div class="cap-lines" data-cap-lines>${lines.map((l, i) => `<div class="cap-line" data-i="${i}">
+                main = `<div class="cap-lines" data-cap-lines>${lines.map((l, i) => `<div class="cap-line ${l.est ? 'est' : ''}" data-i="${i}">
                         <input type="text" data-cap-t value="${fmtT(l.t)}" aria-label="Start time">
                         <input type="text" data-cap-text value="${esc(l.text)}" aria-label="Line ${i + 1}" maxlength="200">
                         <button class="btn ghost small" data-cap="play" title="Play from this line" aria-label="Play from this line">▶</button>
@@ -1677,12 +1684,121 @@
             return lines;
         }
 
+        // --- Lyrics file + AI timing: the words come from Sid's lyrics, the times from Whisper ---
+        // Each lyric line is matched, in order, to the words Whisper heard (tolerating mishearings),
+        // and takes the time of its first matched word. A chorus written once but sung again is
+        // recognised in the leftover audio and captioned with the lyric line. Lines that can't be
+        // placed get a time between their neighbours and are marked "est" for checking.
+
+        const lyricsOf = (s) => ((s.aboutKind || 'lyrics') === 'lyrics' ? (s.lyrics || '').trim() : '');
+
+        // Section labels such as [Chorus] or (x2) aren't sung, so they don't become captions.
+        const lyricLines = (text) => text.split('\n').map((l) => l.trim()).filter((l) => l && !/^[[(].*[\])]$/.test(l));
+
+        const normWord = (w) => String(w).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+
+        function wordSimilarity(a, b) {
+            if (a === b) return 1;
+            if (!a || !b) return 0;
+            let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+            for (let i = 1; i <= a.length; i++) {
+                const cur = [i];
+                for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+                prev = cur;
+            }
+            return 1 - prev[b.length] / Math.max(a.length, b.length);
+        }
+
+        function lineSimilarity(a, b) {
+            const A = a.split(/\s+/).map(normWord).filter(Boolean), B = b.split(/\s+/).map(normWord).filter(Boolean);
+            if (!A.length || !B.length) return 0;
+            const hits = A.filter((w) => B.some((x) => wordSimilarity(w, x) >= 0.75)).length;
+            return hits / Math.max(A.length, B.length);
+        }
+
+        function alignLyrics(text, segments) {
+            const lyrics = lyricLines(text);
+            const heard = segments.flatMap((seg, si) => (seg.words?.length ? seg.words : [{ word: seg.text, start: seg.start, end: seg.end }])
+                .map((w) => ({ n: normWord(w.word), start: w.start, end: w.end, si }))).filter((w) => w.n);
+            const toks = [];
+            lyrics.forEach((line, li) => line.split(/\s+/).forEach((w) => {
+                const n = normWord(w);
+                if (n) toks.push({ n, li });
+            }));
+
+            // Global alignment (Needleman–Wunsch) of lyric words against heard words.
+            const A = toks.length, B = heard.length, W = B + 1, GAP = -0.6;
+            const score = new Float32Array((A + 1) * W), from = new Uint8Array((A + 1) * W); // 0 match, 1 skip lyric, 2 skip heard
+            for (let i = 1; i <= A; i++) { score[i * W] = i * GAP; from[i * W] = 1; }
+            for (let j = 1; j <= B; j++) { score[j] = j * GAP; from[j] = 2; }
+            for (let i = 1; i <= A; i++) {
+                for (let j = 1; j <= B; j++) {
+                    const sim = wordSimilarity(toks[i - 1].n, heard[j - 1].n);
+                    const diag = score[(i - 1) * W + j - 1] + (sim >= 0.75 ? 2 * sim : -1);
+                    const up = score[(i - 1) * W + j] + GAP, left = score[i * W + j - 1] + GAP;
+                    const best = Math.max(diag, up, left);
+                    score[i * W + j] = best;
+                    from[i * W + j] = best === diag ? 0 : best === up ? 1 : 2;
+                }
+            }
+            const matched = lyrics.map(() => []), usedHeard = new Set();
+            for (let i = A, j = B; i > 0 || j > 0;) {
+                const f = i && j ? from[i * W + j] : i ? 1 : 2;
+                if (f === 0) {
+                    if (wordSimilarity(toks[i - 1].n, heard[j - 1].n) >= 0.75) {
+                        matched[toks[i - 1].li].unshift(heard[j - 1]);
+                        usedHeard.add(j - 1);
+                    }
+                    i--; j--;
+                } else if (f === 1) i--;
+                else j--;
+            }
+
+            const lines = lyrics.map((text, li) => {
+                const m = matched[li];
+                // A line needs a fair share of its words heard before its time is trusted.
+                const words = text.split(/\s+/).filter((w) => normWord(w)).length;
+                return m.length && m.length >= Math.min(2, words) * 0.5
+                    ? { t: m[0].start, e: m[m.length - 1].end, text }
+                    : { t: null, text };
+            });
+
+            // Repeats: leftover sung passages that match a lyric line become another caption of that line.
+            segments.forEach((seg, si) => {
+                const own = heard.filter((w) => w.si === si);
+                if (!own.length || own.filter((w, k) => usedHeard.has(heard.indexOf(w))).length / own.length > 0.3) return;
+                let best = null, bestSim = 0.55;
+                for (const l of lyrics) {
+                    const sim = lineSimilarity(seg.text, l);
+                    if (sim > bestSim) { best = l; bestSim = sim; }
+                }
+                if (best) lines.push({ t: seg.start, e: seg.end, text: best, repeat: true });
+            });
+
+            // Lines that couldn't be placed: estimate between their timed neighbours.
+            const timed = lines.filter((l) => l.t !== null).length;
+            const order = lines.filter((l) => !l.repeat);
+            for (let k = 0; k < order.length; k++) {
+                if (order[k].t !== null) continue;
+                let a = k - 1, b = k + 1;
+                while (a >= 0 && order[a].t === null) a--;
+                while (b < order.length && order[b].t === null) b++;
+                const ta = a >= 0 ? (order[a].e ?? order[a].t) : 0;
+                const tb = b < order.length ? order[b].t : ta + 4 * (b - a);
+                order[k].t = Math.round((ta + ((tb - ta) * (k - a)) / (b - a)) * 10) / 10;
+                order[k].est = true;
+            }
+            const out = lines.map(({ repeat, ...l }) => l).sort((x, y) => x.t - y.t);
+            return { lines: out, total: lyrics.length, placed: timed - lines.filter((l) => l.repeat).length, estimated: out.filter((l) => l.est).length, repeats: lines.filter((l) => l.repeat).length };
+        }
+
         async function generate(s, v, st, label) {
             st.status = `${label}: loading the audio…`;
             renderCap(s.id);
             const { pcm, rate } = await toMono(await fetchAudio(`/api/audio/${encodeURI(s[v].key)}`));
             const parts = pieces(pcm, rate);
-            const prompt = `${s.title}. ${(s.aboutKind || 'lyrics') === 'lyrics' ? (s.lyrics || '') : ''}`.replace(/\s+/g, ' ').slice(0, 600);
+            const lyrics = lyricsOf(s);
+            const prompt = `${s.title}. ${lyrics}`.replace(/\s+/g, ' ').slice(0, 600);
             const results = new Array(parts.length);
             let done = 0, next = 0;
             const send = async (p) => {
@@ -1704,9 +1820,20 @@
                 }
             };
             await Promise.all([worker(), worker(), worker()]);
-            st.lines[v] = toLines(results.flat().sort((a, b) => a.start - b.start));
+            const segs = results.flat().sort((a, b) => a.start - b.start);
             st.dirty[v] = true;
             st.source[v] = 'auto';
+            if (!lyrics) {
+                st.lines[v] = toLines(segs);
+                return `${label}: ${st.lines[v].length} lines transcribed`;
+            }
+            const r = alignLyrics(lyrics, segs);
+            st.lines[v] = r.lines;
+            const weak = r.placed < r.total * 0.4;
+            return `${label}: ${r.placed} of ${r.total} lyric lines timed from the audio`
+                + (r.repeats ? `, ${r.repeats} repeats found` : '')
+                + (r.estimated ? `, ${r.estimated} estimated (amber)` : '')
+                + (weak ? ' – the AI struggled to follow these lyrics; Tap to time may be quicker' : '');
         }
 
         async function runGenerate(songId, versions) {
@@ -1715,8 +1842,9 @@
             st.busy = true;
             st.tap = null;
             try {
-                for (const v of versions) await generate(s, v, st, `Version ${VER_LABEL[v]}`);
-                st.status = "Done – check the lines (▶ plays from any line), fix what's wrong, then Save.";
+                const done = [];
+                for (const v of versions) done.push(await generate(s, v, st, `Version ${VER_LABEL[v]}`));
+                st.status = `${done.join('. ')}. Check the lines (▶ plays from any line), fix what's wrong, then Save.`;
             } catch (e) {
                 st.status = `Couldn't generate captions: ${e.message}`;
             } finally {
@@ -1819,6 +1947,7 @@
                     if (!audio) return;
                     lines[i].t = Math.round(audio.currentTime * 10) / 10;
                     delete lines[i].e;
+                    delete lines[i].est;
                     lines.sort((a, b) => a.t - b.t);
                     changed();
                     break;
@@ -1884,6 +2013,8 @@
                 if (Number.isFinite(t)) {
                     line.t = t;
                     delete line.e;
+                    delete line.est;
+                    row.classList.remove('est');
                 }
             }
             st.source[st.ver] = 'edited';
