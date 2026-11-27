@@ -170,6 +170,19 @@
             pointer-events: none;
         }
 
+        /* The song's cover, pressed into the wall drum as a relief (renderDrumArt). Neutral grey
+           leaves the disc as it is; lighter and darker edges lift and press into its material. */
+        #drumArt {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            mix-blend-mode: hard-light;
+            transition: opacity 0.6s ease;
+            -webkit-mask-image: radial-gradient(circle closest-side, #000 55%, transparent 96%);
+            mask-image: radial-gradient(circle closest-side, #000 55%, transparent 96%);
+        }
+
         /* ---------- Glass panels ---------- */
 
         .panel {
@@ -430,7 +443,7 @@
             display: flex;
             align-items: center;
             gap: 20px;
-            padding: 10px 16px;
+            padding: 10px 16px 20px;
             border-radius: 22px;
             /* A soft backing so it reads on light walls as well as dark ones */
             background: rgba(12, 10, 8, 0.34);
@@ -478,6 +491,24 @@
             margin: -6px 0 0 -6px;
             border: 1.5px solid rgba(255, 255, 255, 0.75);
             border-radius: 50%;
+        }
+
+        /* Names the middle stop, so the room view reads as a place to go */
+        .xfader-mid {
+            position: absolute;
+            left: 50%;
+            top: 11px;
+            transform: translateX(-50%);
+            font-size: 9.5px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.75);
+            pointer-events: none;
+            transition: color 0.3s ease;
+        }
+
+        .xfader[data-pos=""] .xfader-mid {
+            color: var(--copper-lt);
         }
 
         .xfader-knob {
@@ -942,6 +973,10 @@
                 animation: none;
             }
 
+            #drumArt {
+                transition: none;
+            }
+
             .xfader {
                 transition: none;
             }
@@ -966,6 +1001,7 @@
         <div class="scene" id="scene">
             <img id="backdrop" alt="">
             <img id="backdropNext" alt="">
+            <canvas id="drumArt" width="512" height="512" aria-hidden="true"></canvas>
             <svg id="hardware" viewBox="0 0 1600 900" aria-hidden="true"></svg>
         </div>
 
@@ -1002,7 +1038,7 @@
         <div class="xfader" id="xfader">
             <div class="xfader-row" id="xfaderRow" role="slider" tabindex="0" aria-label="Switch between A and B" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0.5" aria-valuetext="Nothing playing">
                 <span>A</span>
-                <div class="xfader-track" id="xfaderTrack"><div class="xfader-knob" id="xfaderKnob"></div></div>
+                <div class="xfader-track" id="xfaderTrack"><span class="xfader-mid" aria-hidden="true">Room</span><div class="xfader-knob" id="xfaderKnob"></div></div>
                 <span>B</span>
             </div>
         </div>
@@ -1557,6 +1593,115 @@
         }
 
         // ---------------------------------------------------------------
+        // Song art on the wall drum: each song's cover, pressed into the disc as a relief
+        // (light and shadow from the cover's shapes, plus a hint of its colours). It is
+        // drawn once per song and blended over whichever room is showing; how strongly
+        // can be tuned per room in skins.json ("drum": { "art": { ... } }).
+        // ---------------------------------------------------------------
+
+        const DRUM_ART = {
+            blend: 'hard-light', // how the relief meets the disc
+            strength: 0.35,      // overall opacity
+            relief: 2.4,         // depth of the embossed edges
+            tone: 0.18,          // how much of the cover's light and dark shapes show
+            color: 0.15          // how much of the cover's colour seeps through
+        };
+        let drumArtFor = null, drumArtToken = 0;
+
+        const drumArtStyle = () => ({ ...DRUM_ART, ...(currentSkin.drum?.art || {}) });
+
+        // Size and place the art over the disc (scene units), with this room's blend and strength.
+        function placeDrumArt() {
+            const el = $('drumArt'), d = CONFIG.overlays.drum, a = drumArtStyle();
+            Object.assign(el.style, {
+                left: `${d.x - d.r}px`, top: `${d.y - d.r}px`,
+                width: `${2 * d.r}px`, height: `${2 * d.r}px`,
+                mixBlendMode: a.blend
+            });
+            if (el.dataset.on) el.style.opacity = String(a.strength);
+        }
+
+        // Turn a cover into a relief: neutral grey where flat, lighter and darker on its edges
+        // (lit from the top left), plus a little of its tone and colour, all centred on grey.
+        async function drumRelief(src, a) {
+            const img = new Image();
+            img.src = src;
+            await img.decode();
+            const N = 512, c = document.createElement('canvas');
+            c.width = c.height = N;
+            const g = c.getContext('2d', { willReadFrequently: true });
+            const w = img.naturalWidth || N, h = img.naturalHeight || N, s = Math.min(w, h);
+            g.drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, N, N);
+            const px = g.getImageData(0, 0, N, N), d = px.data;
+
+            // Luminance, softened (two box-blur passes) so painted texture doesn't turn to noise.
+            let L = new Float32Array(N * N), mean = 0;
+            for (let i = 0; i < N * N; i++) {
+                L[i] = (0.2126 * d[i * 4] + 0.7152 * d[i * 4 + 1] + 0.0722 * d[i * 4 + 2]) / 255;
+                mean += L[i];
+            }
+            mean /= N * N;
+            const blur = (src, horiz, r = 2) => {
+                const out = new Float32Array(N * N);
+                for (let y = 0; y < N; y++) {
+                    for (let x = 0; x < N; x++) {
+                        let sum = 0, n = 0;
+                        for (let k = -r; k <= r; k++) {
+                            const xx = horiz ? x + k : x, yy = horiz ? y : y + k;
+                            if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue;
+                            sum += src[yy * N + xx];
+                            n++;
+                        }
+                        out[y * N + x] = sum / n;
+                    }
+                }
+                return out;
+            };
+            L = blur(blur(L, true), false);
+
+            for (let y = 0; y < N; y++) {
+                for (let x = 0; x < N; x++) {
+                    const i = y * N + x;
+                    const up = L[Math.max(0, y - 2) * N + Math.max(0, x - 2)];
+                    const down = L[Math.min(N - 1, y + 2) * N + Math.min(N - 1, x + 2)];
+                    const grey = 128 + 255 * (a.relief * (up - down) + a.tone * (L[i] - mean));
+                    const lum = (0.2126 * d[i * 4] + 0.7152 * d[i * 4 + 1] + 0.0722 * d[i * 4 + 2]);
+                    for (let ch = 0; ch < 3; ch++) d[i * 4 + ch] = grey + a.color * (d[i * 4 + ch] - lum);
+                    d[i * 4 + 3] = 255;
+                }
+            }
+            return px;
+        }
+
+        // Called from updateUI: when the song changes, fade the old art out and the new one in.
+        // Songs without a cover (the demo collections) leave the disc bare.
+        async function syncDrumArt() {
+            const src = song?.cover || null;
+            if (src === drumArtFor) return;
+            drumArtFor = src;
+            const token = ++drumArtToken, el = $('drumArt'), started = performance.now();
+            const wasOn = !!el.dataset.on;
+            el.dataset.on = '';
+            el.style.opacity = '0';
+            if (!src) return;
+            const a = drumArtStyle();
+            let art;
+            try {
+                art = await drumRelief(src, a);
+            } catch (e) {
+                return; // cover missing or unreadable: leave the disc bare
+            }
+            const left = 600 - (performance.now() - started);
+            if (wasOn && left > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                await new Promise((r) => setTimeout(r, left)); // let the old art finish fading
+            }
+            if (token !== drumArtToken) return;
+            el.getContext('2d').putImageData(art, 0, 0);
+            el.dataset.on = '1';
+            el.style.opacity = String(drumArtStyle().strength);
+        }
+
+        // ---------------------------------------------------------------
         // Live hardware overlay: records, VU needles, power LED
         // ---------------------------------------------------------------
 
@@ -1614,6 +1759,7 @@
             hw.led = $('led');
             hw.drumGlow = $('drumGlow');
             hw.drumRipples = $('drumRipples');
+            placeDrumArt();
         }
 
         // ---------------------------------------------------------------
@@ -2608,6 +2754,7 @@
             ).join('');
             if (collection) syncSkin(collection);
             if (!song) return;
+            syncDrumArt();
 
             const cover = coverStyle(song, songIdx + COLLECTIONS.indexOf(collection) * 10);
             const num = String(songIdx + 1).padStart(2, '0');
