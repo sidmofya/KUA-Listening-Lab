@@ -168,6 +168,13 @@
             pointer-events: none;
         }
 
+        /* The incoming room skin fades in over the current one, then takes its place. */
+        #backdropNext {
+            opacity: 0;
+            transition: opacity 0.9s ease;
+            pointer-events: none;
+        }
+
         /* ---------- Glass panels ---------- */
 
         .panel {
@@ -1014,6 +1021,10 @@
             .scene {
                 transition-duration: 0.01s;
             }
+
+            #backdropNext {
+                transition: none;
+            }
         }
     </style>
 </head>
@@ -1026,6 +1037,7 @@
     <main class="stage" id="stage">
         <div class="scene" id="scene">
             <img id="backdrop" alt="">
+            <img id="backdropNext" alt="">
             <svg id="hardware" viewBox="0 0 1600 900" aria-hidden="true"></svg>
         </div>
 
@@ -1201,7 +1213,7 @@
             `Turn it up till the needle bends\nThis is the part where the story ends\nOr starts again, I can't decide\nTwo roads and I want both sides\n\nA or B, B or A\nTell me which one makes you stay\nA or B, B or A\nPlay it back another way\n\nDust on the sleeve and a crack in the sound\nSpin it slow, let it go around\nWhatever you choose I'll understand\nThe song was always in your hands`
         ];
 
-        function demoCollection(id, name, offset) {
+        function demoCollection(id, name, offset, skin) {
             const songs = [];
             for (let i = 0; i < 10; i++) {
                 const seed = offset + i + 1;
@@ -1214,12 +1226,12 @@
                     v2: `demo:${seed}:2`
                 });
             }
-            return { id, name, demo: true, songs };
+            return { id, name, demo: true, skin, songs };
         }
 
         const DEMO_COLLECTIONS = [
             demoCollection('vol01', 'Vol. 01', 0),
-            demoCollection('vol02', 'Vol. 02', 10)
+            demoCollection('vol02', 'Vol. 02', 10, 'rhythmic-ridge')
         ];
 
         let COLLECTIONS = DEMO_COLLECTIONS;
@@ -1234,6 +1246,111 @@
             } catch (e) {
                 // No API (e.g. a plain static server) – stay on the demo collections.
             }
+        }
+
+        // ---------------------------------------------------------------
+        // Room skins: each collection can wear an alternate render of the same room
+        // (same camera and furniture, a different KwaZuri region). The list lives in
+        // /skins.json, shared with the Studio and the Studio API. Collections without
+        // a skin, or whose skin is unknown, use the default room.
+        // ---------------------------------------------------------------
+
+        const BASE_SCENE = {
+            overlays: structuredClone(CONFIG.overlays),
+            views: structuredClone(CONFIG.views)
+        };
+        const BUILT_IN_SKIN = {
+            id: 'default', image: CONFIG.sceneImage, accent: '#b87333', accentLight: '#d4a574',
+            drum: { ripple: '#f0c9a0', glow: '#ffe7cc' }
+        };
+        const SKINS = new Map([['default', BUILT_IN_SKIN]]);
+        // ?skin=<id> previews a room on any collection (and picks the room ?calibrate works on).
+        const FORCED_SKIN = new URLSearchParams(location.search).get('skin');
+        let currentSkin = BUILT_IN_SKIN, pendingSkin = null, skinToken = 0;
+        const brokenSkins = new Set();
+
+        async function loadSkins() {
+            try {
+                const res = await fetch('/skins.json', { cache: 'no-cache' });
+                if (!res.ok) return;
+                const { skins } = await res.json();
+                for (const s of skins || []) if (s?.id && s.image) SKINS.set(s.id, s);
+                if (SKINS.get('default').image === CONFIG.sceneImage) currentSkin = SKINS.get('default');
+            } catch (e) {
+                // No skin list: every collection keeps the default room.
+            }
+        }
+
+        function skinFor(c) {
+            return SKINS.get(FORCED_SKIN) || SKINS.get(c?.skin) || SKINS.get('default');
+        }
+
+        // Deep-merge a skin's calibration nudges over the default positions.
+        function mergeScene(base, extra) {
+            const out = structuredClone(base);
+            for (const [k, v] of Object.entries(extra || {})) out[k] = { ...out[k], ...v };
+            return out;
+        }
+
+        function syncSkin(c) {
+            const skin = skinFor(c);
+            if (skin !== currentSkin && skin !== pendingSkin && !brokenSkins.has(skin)) applySkin(skin);
+        }
+
+        const prefetched = new Set();
+        function prefetchSkin(c) {
+            const skin = skinFor(c);
+            if (!skin || prefetched.has(skin.image)) return;
+            prefetched.add(skin.image);
+            new Image().src = skin.image;
+        }
+
+        // behindWelcome: swap instantly if the welcome card still hides the room, else crossfade.
+        async function applySkin(skin, { behindWelcome = false } = {}) {
+            const token = ++skinToken;
+            pendingSkin = skin;
+            const incoming = new Image();
+            incoming.src = skin.image;
+            try {
+                await incoming.decode();
+            } catch (e) {
+                // Image missing or broken: stay in the room we're in, and don't keep retrying.
+                brokenSkins.add(skin);
+                if (token === skinToken) {
+                    pendingSkin = null;
+                    console.warn('Room skin image did not load:', skin.image);
+                }
+                return;
+            }
+            if (token !== skinToken) return;
+            pendingSkin = null;
+            currentSkin = skin;
+            prefetched.add(skin.image);
+            CONFIG.sceneImage = skin.image;
+            CONFIG.overlays = mergeScene(BASE_SCENE.overlays, skin.overlays);
+            CONFIG.views = mergeScene(BASE_SCENE.views, skin.views);
+            const root = document.documentElement.style;
+            root.setProperty('--copper', skin.accent || BUILT_IN_SKIN.accent);
+            root.setProperty('--copper-lt', skin.accentLight || BUILT_IN_SKIN.accentLight);
+            buildHardware();
+            applyCamera();
+            mediaKey = '';
+            updateMediaSession();
+
+            const back = $('backdrop'), next = $('backdropNext');
+            const settle = () => {
+                if (token !== skinToken) return;
+                back.src = skin.image;
+                next.style.transition = 'none';
+                next.style.opacity = '0';
+            };
+            const hidden = behindWelcome && $('welcome').classList.contains('open');
+            if (hidden || matchMedia('(prefers-reduced-motion: reduce)').matches || !back.src) return settle();
+            next.src = skin.image;
+            next.style.transition = '';
+            next.getBoundingClientRect(); // start the fade from fully transparent
+            next.style.opacity = '1';
+            setTimeout(settle, 950);
         }
 
         // ---------------------------------------------------------------
@@ -1558,7 +1675,7 @@
                     <circle cx="${o.led.x}" cy="${o.led.y}" r="10" fill="url(#ledGlow)"/>
                     <circle cx="${o.led.x}" cy="${o.led.y}" r="2.6" fill="#ff3b2f"/>
                 </g>
-                <circle id="drumGlow" cx="${o.drum.x}" cy="${o.drum.y}" r="${o.drum.r}" fill="none" stroke="#ffe7cc" stroke-width="10" opacity="0" style="filter: blur(6px)"/>
+                <circle id="drumGlow" cx="${o.drum.x}" cy="${o.drum.y}" r="${o.drum.r}" fill="none" stroke="${currentSkin.drum?.glow || BUILT_IN_SKIN.drum.glow}" stroke-width="10" opacity="0" style="filter: blur(6px)"/>
                 <g id="drumRipples"></g>
                 <g id="calHandles"></g>`;
             hw.recA = $('recA');
@@ -1693,7 +1810,7 @@
             ring.setAttribute('cy', y);
             ring.setAttribute('r', size);
             ring.setAttribute('fill', 'none');
-            ring.setAttribute('stroke', '#f0c9a0');
+            ring.setAttribute('stroke', currentSkin.drum?.ripple || BUILT_IN_SKIN.drum.ripple);
             ring.setAttribute('stroke-width', 4);
             ring.style.transformBox = 'fill-box';
             ring.style.transformOrigin = 'center';
@@ -2519,6 +2636,7 @@
             $('collections').innerHTML = COLLECTIONS.map((c, i) =>
                 `<button role="tab" data-c="${i}" aria-current="${c === collection}" aria-selected="${c === collection}">${esc(c.name)}<sup>${votedCount(c)}/${c.songs.length}</sup></button>`
             ).join('');
+            if (collection) syncSkin(collection);
             if (!song) return;
 
             const cover = coverStyle(song, songIdx + COLLECTIONS.indexOf(collection) * 10);
@@ -2579,7 +2697,7 @@
             const key = `${song.id}|${live || ''}`;
             if (key !== mediaKey) {
                 mediaKey = key;
-                const art = [song.cover, CONFIG.sceneImage].filter(Boolean).map((src) => ({ src: new URL(src, location.href).href, sizes: '1024x1024', type: 'image/jpeg' }));
+                const art = [song.cover, currentSkin.image].filter(Boolean).map((src) => ({ src: new URL(src, location.href).href, sizes: '1024x1024', type: 'image/jpeg' }));
                 ms.metadata = new MediaMetadata({
                     title: song.title,
                     artist: `${song.artist || 'KŮA'}${live ? ` · version ${live}` : ''}`,
@@ -2829,7 +2947,9 @@
         function initCalibrate() {
             const box = document.createElement('div');
             box.className = 'cal';
-            box.innerHTML = 'CALIBRATE · drag the copper handles onto the render, then paste into CONFIG.overlays<textarea readonly></textarea>';
+            box.innerHTML = currentSkin.id && currentSkin.id !== 'default'
+                ? `CALIBRATE · ${esc(currentSkin.name || currentSkin.id)} · drag the copper handles onto the render, then paste the moved entries into this skin's "overlays" in public/skins.json<textarea readonly></textarea>`
+                : 'CALIBRATE · drag the copper handles onto the render, then paste into CONFIG.overlays<textarea readonly></textarea>';
             $('stage').appendChild(box);
             const out = box.querySelector('textarea');
             const hardware = $('hardware');
@@ -2883,11 +3003,15 @@
 
             const enter = document.querySelector('#welcomeForm .cta');
             enter.disabled = true;
-            await loadCatalog();
+            await Promise.all([loadCatalog(), loadSkins()]);
             enter.disabled = false;
             updateUI();
 
             const route = parseRoute();
+            // A shared link already shows its collection's room behind the welcome card. Not awaited:
+            // the room image can take seconds on a phone, and the buttons must work meanwhile.
+            const firstSkin = skinFor(route && route.ci !== -1 ? COLLECTIONS[route.ci] : null);
+            if (firstSkin !== currentSkin) applySkin(firstSkin, { behindWelcome: true });
             if (route && route.ci !== -1) {
                 const c = COLLECTIONS[route.ci];
                 $('welcomeSent').textContent = route.si !== -1 ? `You've been sent “${c.songs[route.si].title}”` : `You've been sent ${c.name}`;
@@ -2919,6 +3043,16 @@
                 const b = e.target.closest('[data-c]');
                 if (b && song && COLLECTIONS[b.dataset.c] !== collection) selectCollection(Number(b.dataset.c));
             });
+            // Warm the next room before it's chosen, so switching collections feels instant.
+            const warm = (e) => {
+                const b = e.target.closest?.('[data-c]');
+                if (b) prefetchSkin(COLLECTIONS[b.dataset.c]);
+            };
+            $('collections').addEventListener('pointerover', warm);
+            $('collections').addEventListener('focusin', warm);
+            // Each room is ~0.5–0.8 MB, so skip the warm-up for listeners on Data Saver or a 2G connection.
+            const lean = navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || ''));
+            if (!lean) (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => COLLECTIONS.forEach(prefetchSkin), { timeout: 8000 });
 
             $('aboutToggle').addEventListener('click', () => {
                 const open = $('aboutPanel').classList.toggle('expanded');

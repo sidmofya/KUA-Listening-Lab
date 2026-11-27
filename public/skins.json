@@ -1,0 +1,58 @@
+{
+  "skins": [
+    {
+      "id": "default",
+      "name": "KŮA Room",
+      "blurb": "The original room: board-formed concrete, warm uplights, the oxblood drum.",
+      "image": "/assets/scene-wide.jpg",
+      "accent": "#b87333",
+      "accentLight": "#d4a574",
+      "drum": { "ripple": "#f0c9a0", "glow": "#ffe7cc" }
+    },
+    {
+      "id": "harmonic-plains",
+      "name": "Harmonic Plains",
+      "blurb": "Open grassland: wheat-straw plaster, golden afternoon air, a sage-and-gold woven drum.",
+      "image": "/assets/skins/harmonic-plains.jpg",
+      "accent": "#b8963e",
+      "accentLight": "#dcc27a",
+      "drum": { "ripple": "#f3e1a6", "glow": "#fff3cf" }
+    },
+    {
+      "id": "rhythmic-ridge",
+      "name": "Rhythmic Ridge",
+      "blurb": "Volcanic mountains: dark basalt, ember uplights, an obsidian drum with a molten rim.",
+      "image": "/assets/skins/rhythmic-ridge.jpg",
+      "accent": "#c2502a",
+      "accentLight": "#f08a5d",
+      "drum": { "ripple": "#ffb27a", "glow": "#ffd2a8" }
+    },
+    {
+      "id": "melodic-forests",
+      "name": "Melodic Forests",
+      "blurb": "Dense forest: moss-green plaster, dappled leaf light, a tree-ring drum.",
+      "image": "/assets/skins/melodic-forests.jpg",
+      "accent": "#3f8f5f",
+      "accentLight": "#8fd1a5",
+      "drum": { "ripple": "#c9ecb8", "glow": "#e7f8dc" }
+    },
+    {
+      "id": "silent-sands",
+      "name": "Silent Sands",
+      "blurb": "Desert stillness: layered sandstone, soft diffuse light, a pale dune-ripple drum.",
+      "image": "/assets/skins/silent-sands.jpg",
+      "accent": "#b89a6a",
+      "accentLight": "#e2cfa6",
+      "drum": { "ripple": "#f5e6c8", "glow": "#fff6e4" }
+    },
+    {
+      "id": "vibrato-valleys",
+      "name": "Vibrato Valleys",
+      "blurb": "Caves and underground rivers: wet slate, teal water light, a drum of concentric ripples.",
+      "image": "/assets/skins/vibrato-valleys.jpg",
+      "accent": "#3f8f96",
+      "accentLight": "#8fd3d6",
+      "drum": { "ripple": "#a8eef0", "glow": "#dffbfb" }
+    }
+  ]
+}
