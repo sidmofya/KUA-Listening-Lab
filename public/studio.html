@@ -1819,13 +1819,30 @@
             const prompt = `${s.title}. ${lyrics}`.replace(/\s+/g, ' ').slice(0, 600);
             const results = new Array(parts.length);
             let done = 0, next = 0;
-            const send = async (p) => {
+            // A piece OpenAI can't finish inside the server's ~10 s is split at its quietest moment
+            // (within 3 s of the middle) and the halves are sent separately, down to ~8 s pieces.
+            const quietestNear = (from, to) => {
+                const win = Math.round(rate / 10), mid = Math.floor((from + to) / 2);
+                let best = mid, bestRms = Infinity;
+                for (let at = Math.max(from + win, mid - 3 * rate); at < Math.min(to - win, mid + 3 * rate); at += win) {
+                    let sum = 0;
+                    for (let j = at; j < at + win; j++) sum += pcm[j] * pcm[j];
+                    if (sum < bestRms) { bestRms = sum; best = at; }
+                }
+                return best;
+            };
+            const send = async (p, depth = 0) => {
                 const body = wav(pcm.subarray(p.from, p.to), rate);
                 const url = `/api/captions/transcribe?offset=${(p.from / rate).toFixed(2)}&prompt=${encodeURIComponent(prompt)}`;
                 try {
                     return await api(url, { method: 'POST', raw: body });
                 } catch (e) {
                     if (/OPENAI_API_KEY|Signed out/.test(e.message)) throw e;
+                    if (/timed out/i.test(e.message) && depth < 2 && p.to - p.from > 8 * rate) {
+                        const cut = quietestNear(p.from, p.to);
+                        const [x, y] = await Promise.all([send({ from: p.from, to: cut }, depth + 1), send({ from: cut, to: p.to }, depth + 1)]);
+                        return { segments: [...x.segments, ...y.segments] };
+                    }
                     return api(url, { method: 'POST', raw: body }); // one retry
                 }
             };
