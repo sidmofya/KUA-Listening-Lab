@@ -1253,8 +1253,24 @@
                                 const res = await requestCover(group.id, song.id);
                                 if (res.warning) toast(res.warning);
                             }
+                            // Captions for the new (or replaced) versions, published straight away.
+                            let captionNote = '';
+                            if (live) {
+                                const made = [];
+                                for (const v of ['v1', 'v2'].filter((x) => needsCaptions(song, x))) {
+                                    setNote(`Captioning ${VER_LABEL[v]}… keep this tab open.`);
+                                    try {
+                                        const r = await autoCaption(group.id, song, v);
+                                        made.push(VER_LABEL[v] + (r.review ? ` (check: ${r.review})` : ''));
+                                    } catch (e) {
+                                        captionNote = ` Captions for ${VER_LABEL[v]} failed (${e.message}) – use Caption all songs later.`;
+                                        break;
+                                    }
+                                }
+                                if (made.length) captionNote = ` Captions: ${made.join(', ')}.` + captionNote;
+                            }
                             row.state = 'done';
-                            setNote(live ? 'Live in the listening room.' : `Uploaded. Goes live once version ${song.v1 ? 'B' : 'A'} arrives.`);
+                            setNote((live ? 'Live in the listening room.' : `Uploaded. Goes live once version ${song.v1 ? 'B' : 'A'} arrives.`) + captionNote);
                         } catch (err) {
                             row.state = 'error';
                             setNote(`Failed: ${err.message}`);
@@ -1368,9 +1384,11 @@
                         ${roomPreview(skinById(c.skin))}
                     </div>
                     <div class="row" style="margin-top:10px;justify-content:flex-end">
+                        <button class="btn ghost small" data-act="caption-all" ${live && !bulkCap?.running ? '' : 'disabled'} title="Make captions for every live song version that has none">Caption all songs</button>
                         <button class="btn ghost small" data-act="regen-all" ${live ? '' : 'disabled'}>Regenerate all covers</button>
                         <button class="btn small" data-act="save-collection">Save</button>
                     </div>
+                    <p class="note" data-bulk-status ${bulkCap?.collectionId === c.id ? '' : 'hidden'}>${bulkCap?.collectionId === c.id ? esc(bulkCap.text) : ''}</p>
                     <ol class="songs">
                         ${songs.map((s, i) => `<li class="song" draggable="true" data-s="${esc(s.id)}">
                             <span class="handle" title="Drag to reorder">⋮⋮</span>
@@ -1825,15 +1843,18 @@
             st.source[v] = 'auto';
             if (!lyrics) {
                 st.lines[v] = toLines(segs);
-                return `${label}: ${st.lines[v].length} lines transcribed`;
+                return { text: `${label}: ${st.lines[v].length} lines transcribed`, review: 'AI words (no lyrics file)' };
             }
             const r = alignLyrics(lyrics, segs);
             st.lines[v] = r.lines;
             const weak = r.placed < r.total * 0.4;
-            return `${label}: ${r.placed} of ${r.total} lyric lines timed from the audio`
-                + (r.repeats ? `, ${r.repeats} repeats found` : '')
-                + (r.estimated ? `, ${r.estimated} estimated (amber)` : '')
-                + (weak ? ' – the AI struggled to follow these lyrics; Tap to time may be quicker' : '');
+            return {
+                text: `${label}: ${r.placed} of ${r.total} lyric lines timed from the audio`
+                    + (r.repeats ? `, ${r.repeats} repeats found` : '')
+                    + (r.estimated ? `, ${r.estimated} estimated (amber)` : '')
+                    + (weak ? ' – the AI struggled to follow these lyrics; Tap to time may be quicker' : ''),
+                review: weak ? 'AI could not follow the lyrics' : r.estimated > r.total * 0.25 ? `${r.estimated} estimated times` : ''
+            };
         }
 
         async function runGenerate(songId, versions) {
@@ -1843,7 +1864,7 @@
             st.tap = null;
             try {
                 const done = [];
-                for (const v of versions) done.push(await generate(s, v, st, `Version ${VER_LABEL[v]}`));
+                for (const v of versions) done.push((await generate(s, v, st, `Version ${VER_LABEL[v]}`)).text);
                 st.status = `${done.join('. ')}. Check the lines (▶ plays from any line), fix what's wrong, then Save.`;
             } catch (e) {
                 st.status = `Couldn't generate captions: ${e.message}`;
@@ -1852,6 +1873,70 @@
                 renderCap(songId);
             }
         }
+
+        // --- Automatic captioning: every version without (current) captions, published as made ---
+
+        // A version needs captions if it has none, or its audio was replaced since they were made.
+        // Unsaved edits in the editor are never overwritten.
+        const needsCaptions = (s, v) => !!s[v] && !capFor(s.id).dirty[v] && (!s.captions?.[v] || s.captions[v].audioKey !== s[v].key);
+
+        async function autoCaption(collectionId, s, v) {
+            const st = capFor(s.id);
+            const r = await generate(s, v, st, `Version ${VER_LABEL[v]}`);
+            const res = await api('/api/captions', { method: 'POST', body: { collectionId, songId: s.id, version: v, lines: st.lines[v], source: 'auto' } });
+            if (res.captions) s.captions = res.captions;
+            st.dirty[v] = false;
+            st.status = r.text;
+            renderCap(s.id);
+            return r;
+        }
+
+        let bulkCap = null; // { collectionId, running, text } – progress of "Caption all songs"
+
+        function renderBulk() {
+            document.querySelectorAll('[data-bulk-status]').forEach((el) => {
+                const mine = bulkCap && el.closest('[data-c]').dataset.c === bulkCap.collectionId;
+                el.hidden = !mine;
+                el.textContent = mine ? bulkCap.text : '';
+            });
+            document.querySelectorAll('[data-act="caption-all"]').forEach((b) => { b.disabled = !!bulkCap?.running; });
+        }
+
+        async function captionAll(c) {
+            const jobs = c.order.map((id) => c.songs[id]).filter((s) => s?.v1 && s?.v2)
+                .flatMap((s) => ['v1', 'v2'].filter((v) => needsCaptions(s, v)).map((v) => ({ s, v })));
+            if (!jobs.length) return toast('Every live song in this collection already has captions.');
+            if (!confirm(`Make and publish captions for ${jobs.length} version${jobs.length > 1 ? 's' : ''} in ${c.name}? Songs with a lyrics file use your words; the rest get AI-written words. Keep this tab open – it takes about a minute per version.`)) return;
+            bulkCap = { collectionId: c.id, running: true, text: 'Starting…' };
+            renderBulk();
+            const review = [], failed = [];
+            let made = 0;
+            for (const [k, { s, v }] of jobs.entries()) {
+                bulkCap.text = `Captioning ${k + 1} of ${jobs.length}: ${s.title} (${VER_LABEL[v]})… keep this tab open.`;
+                renderBulk();
+                try {
+                    const r = await autoCaption(c.id, s, v);
+                    made++;
+                    if (r.review) review.push(`${s.title} ${VER_LABEL[v]} – ${r.review}`);
+                } catch (e) {
+                    failed.push(`${s.title} ${VER_LABEL[v]}: ${e.message}`);
+                    if (/OPENAI_API_KEY|Signed out/.test(e.message)) break;
+                }
+            }
+            bulkCap = {
+                collectionId: c.id, running: false,
+                text: `Captions published for ${made} of ${jobs.length} versions.`
+                    + (review.length ? ` Worth a look: ${review.join('; ')}.` : made ? ' Nothing flagged for review.' : '')
+                    + (failed.length ? ` Failed: ${failed.map((f) => f.replace(/\.$/, '')).join('; ')}.` : '')
+            };
+            renderBulk();
+            toast(`Captions done: ${made} of ${jobs.length}.`);
+            refresh().catch(() => {});
+        }
+
+        window.addEventListener('beforeunload', (e) => {
+            if (bulkCap?.running) e.preventDefault();
+        });
 
         function tapHit(songId) {
             const { li, st } = capContext(songId), t = st?.tap;
@@ -2061,6 +2146,9 @@
                     if (confirm(`Delete ${c.name} and all ${c.order.length} songs, audio and covers? This can't be undone.`)) {
                         act('Collection deleted.', () => api('/api/admin/collection', { method: 'DELETE', body: { id: c.id } }));
                     }
+                    break;
+                case 'caption-all':
+                    captionAll(c);
                     break;
                 case 'regen-all':
                     if (confirm(`Generate new covers for every live song in ${c.name}?`)) {

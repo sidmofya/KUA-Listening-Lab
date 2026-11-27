@@ -427,7 +427,7 @@
         .captions {
             position: absolute;
             left: 50%;
-            bottom: 62px;
+            bottom: 84px;
             transform: translateX(-50%);
             width: min(680px, 92%);
             padding: 10px 18px 8px;
@@ -471,7 +471,7 @@
 
         /* While lyrics show, hints move up above them */
         .stage.has-captions .hint {
-            bottom: 132px;
+            bottom: 156px;
         }
 
         /* A/B slider: a fader slot and cap, so it reads as something to drag. It rides above
@@ -1127,7 +1127,7 @@
                 <span class="time" id="timePlay">0:00</span>
             </button>
             <button class="bar" id="barSelect" aria-label="Vote for A or B">
-                <span>Select</span>
+                <span>Vote A or B</span>
                 <span class="sub" id="selectSub"></span>
             </button>
         </div>
@@ -1138,7 +1138,7 @@
                 <div class="kicker">KŮA Listening Lab</div>
                 <div class="sent" id="welcomeSent"></div>
                 <h1 style="margin-top:8px">AB/<em>no</em>CD</h1>
-                <p>Every song here comes in two versions. Switch between A and B as often as you like – each one picks up where you left it. When you know which you'd keep, hit <b>Select</b> and vote.</p>
+                <p>Every song here comes in two versions. Switch between A and B as often as you like – each one picks up where you left it. When you know which you'd keep, hit <b>Vote A or B</b>.</p>
                 <button class="cta" type="submit">Enter the room</button>
             </form>
         </div>
@@ -1192,7 +1192,7 @@
         // Configuration
         // ---------------------------------------------------------------
 
-        // Seconds a listener must hear of each version before SELECT unlocks.
+        // Seconds a listener must hear of each version before the vote button unlocks.
         const MIN_LISTEN = 15;
 
         const CONFIG = {
@@ -2036,7 +2036,7 @@
             const half = xf.offsetWidth / 2, h = xf.offsetHeight;
             // Always fully on screen, clear of the top edge and of the hint and buttons at the bottom.
             const x = clamp(cam.tx + a.x * cam.S, half + 8, W - half - 8);
-            const y = clamp(cam.ty + a.y * cam.S, h + 12, H - (songHasCaptions() ? 160 : 100));
+            const y = clamp(cam.ty + a.y * cam.S, h + 12, H - (songHasCaptions() ? (W > 760 ? 182 : 160) : 100));
             xf.style.transition = animate ? '' : 'none';
             xf.style.left = `${x}px`;
             xf.style.top = `${y}px`;
@@ -2941,13 +2941,12 @@
             $('barSelect').setAttribute('aria-disabled', String(!ready));
             $('selectSub').textContent = vote
                 ? `VOTED ${vote.choice} · CHANGE`
-                : ready ? 'READY TO VOTE' : `A ${Math.ceil(ra)}S · B ${Math.ceil(rb)}S`;
+                : ready ? 'READY' : `A ${Math.ceil(ra)}S · B ${Math.ceil(rb)}S`;
 
             let hint = '';
             const anyPlaying = isPlaying(decks.A) || isPlaying(decks.B);
             if (loading) hint = 'Pressing records…';
             else if (!anyPlaying && !$('vote').classList.contains('open')) hint = vote ? `You picked ${vote.choice} · press Play to listen again` : live ? 'Paused · press Play' : 'Press Play, then slide between A and B';
-            else if (anyPlaying && ready && !vote) hint = 'Heard enough? Tap SELECT to vote';
             else if (anyPlaying && (drumHintUntil > performance.now() || (!store.drumHinted && musicTime > 20))) {
                 if (!drumHintUntil) {
                     // Shown once per browser, for a few seconds.
