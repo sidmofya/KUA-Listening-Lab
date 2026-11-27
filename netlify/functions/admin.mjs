@@ -132,6 +132,8 @@ async function removeSongFiles(song) {
     const votes = store('votes');
     const { blobs } = await votes.list({ prefix: `${song.id}/` });
     jobs.push(...blobs.map((b) => votes.delete(b.key)));
+    const captions = store('captions');
+    jobs.push(...['v1', 'v2'].map((v) => captions.delete(`${song.id}/${v}`)));
     await Promise.all(jobs);
 }
 

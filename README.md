@@ -10,6 +10,7 @@ Listeners hear two versions of each song on a two-deck hi-fi and vote for the on
 - **Background listening:** music keeps playing with the phone locked or the browser in the background, including continuous play into the next song; the lock screen / Control Centre shows the song, cover and play/pause/next/previous. On iPhone the music plays directly from the audio element (iOS suspends Web Audio when locked), so the VU needles are simulated and the vote-card volume dip isn't available there.
 - **Drum along:** tapping the oxblood disc on the wall plays a synthesised djembe hit – deep bass at the centre, rising through tone to a bright slap at the rim – with a copper ripple where it was struck. A one-time hint mentions it after about 20 seconds of listening. The disc's position lives in `CONFIG.overlays.drum` (adjust with `?calibrate`).
 - **Song art on the drum:** each song's cover is pressed into the wall drum as a subtle relief – light and shadow from the cover's shapes plus a hint of its colours, blended into whichever room is showing – and crossfades when the song changes. Songs without a cover leave the disc bare. It's drawn once per song in the browser from the cover the song picker already loads; strength per room is tuned in `skins.json` (`drum.art`).
+- **Lyrics (captions):** while music plays, the line being sung shows just above the Play/SELECT buttons, with the next line fainter beneath. Each version has its own timing (they're different arrangements). Captions hide when paused, during instrumental gaps, and for songs or versions without them. Made and edited in the Studio (see Captions below).
 - Listeners enter without signing in; the first vote of each browser session asks for a first name, which later votes reuse.
 - **Top nav** switches collections. Each collection can have its own **room** (see Room skins below); switching collections crossfades into that room.
 - A/B order is randomised per listener and song; the vote records the real version (`v1` = file A, `v2` = file B).
@@ -30,6 +31,15 @@ Listeners hear two versions of each song on a two-deck hi-fi and vote for the on
 2. Open `/studio`, sign in, and drop the folder or individual files. The preview lists every song it found, flags misnamed files, and lets you paste or edit each song's About text and choose its type (Lyrics, Story, How the versions differ, Notes). About texts aren't shown to listeners; they shape each song's cover.
 3. Click **Upload**. The first time a collection appears, the Studio asks for its display name and **art theme**; every cover in that collection is generated from the theme plus each song's title and About text (version notes are left out).
 4. A song goes live as soon as both A and B are uploaded, and gets a cover at that point. Upload B later and it goes live then.
+
+### Captions (timed lyrics)
+
+Studio → a live song → **Lyrics captions**. Choose **Version A** or **B** (your `_A` and `_B` files), then either:
+
+- **Generate** (or **Generate both**): AI transcription with OpenAI Whisper (`whisper-1`, about $0.006 per minute of audio, so a few cents per song). Your browser loads the version, converts it to compact mono audio and sends it in ~30-second pieces cut at quiet moments (server functions stop after ~10 s). The song's title and, if its About text is lyrics, those lyrics are given as hints, which helps spelling. Needs `OPENAI_API_KEY`; change the model with `OPENAI_TRANSCRIBE_MODEL` (it must return timings). Sung vocals and non-English lyrics come out imperfect, so check them.
+- **Tap to time**: paste the lyrics (one caption per line; prefilled from the About lyrics), press Start, and tap the Tap button or Space as each line begins. Undo steps back a line. Best for songs Whisper struggles with.
+
+Then fix anything in the line list: edit words or times (`m:ss.s`), ▶ plays from a line, ⏱ sets a line to the player's current position, × deletes, **+ Add line**, and **All −/+0.5 s** shifts everything. Nothing reaches listeners until you press **Save**; **Remove** takes a version's captions down. If you replace a version's audio later, the editor warns that its timings may be off.
 
 In the Studio you can also reorder songs (drag, or ↑ ↓), rename them, edit About texts, regenerate covers (AI or generative), replace a version (upload the same filename again) and delete songs or collections. A collection holds up to 10 songs.
 
@@ -58,14 +68,14 @@ Environment variables (Site configuration → Environment variables):
 | --- | --- |
 | `STUDIO_PASSWORD` | Studio sign-in password |
 | `SESSION_SECRET` | Any long random string; signs Studio sessions |
-| `OPENAI_API_KEY` | OpenAI key for AI covers (optional; needs credits and a verified organization) |
+| `OPENAI_API_KEY` | OpenAI key for AI covers (needs credits and a verified organization) and caption Generate (optional) |
 | `GEMINI_API_KEY` | Google AI Studio key for AI covers, used when there is no OpenAI key (optional; needs billing) |
 
 Local development: `npm install`, put the variables in a `.env` file, then `npm run dev` (Netlify Dev emulates the functions and Blobs at http://localhost:8888). Without the API, e.g. on a plain static server, the listening room falls back to two demo collections whose audio is synthesised in the browser; `?demo` forces them.
 
 ## Votes
 
-Votes are stored on the site itself (Netlify Blobs), one per listener per song; voting again replaces the listener's earlier vote. The Studio's **Results** section shows the A/B split for every live song, with listeners' notes, and **Download CSV** exports every vote. A and B always mean your `_A` and `_B` files, whichever deck a listener heard them on. Votes that fail to send queue in the listener's browser and retry on the next vote or visit. Demo collections never send votes, and deleting a song deletes its votes.
+Votes are stored on the site itself (Netlify Blobs), one per listener per song; voting again replaces the listener's earlier vote. The Studio's **Results** section shows the A/B split for every live song, with listeners' notes, and **Download CSV** exports every vote. A and B always mean your `_A` and `_B` files, whichever deck a listener heard them on. Votes that fail to send queue in the listener's browser and retry on the next vote or visit. Demo collections never send votes, and deleting a song deletes its votes and captions.
 
 ## The wide-shot render
 
