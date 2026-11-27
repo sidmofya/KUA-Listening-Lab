@@ -18,19 +18,15 @@ Listeners hear two versions of each song on a two-deck hi-fi and vote for the on
 
 ## Adding songs (Studio)
 
-1. Name your files `[collection]_[track name]_[A|B].[ext]`, plus an optional About text named `…_lyrics.txt`, `…_story.txt`, `…_versions.txt` or `…_notes.txt` (the suffix sets its type):
-
-   ```
-   vol03/
-     vol03_Copper Light_A.wav
-     vol03_Copper Light_B.wav
-     vol03_Copper Light_lyrics.txt
-   ```
-
-   Audio can be mp3, m4a, aac, wav, flac, ogg or aiff, at any size. Underscores inside a track name read as spaces.
-2. Open `/studio`, sign in, and drop the folder or individual files. The preview lists every song it found, flags misnamed files, and lets you paste or edit each song's About text and choose its type (Lyrics, Story, How the versions differ, Notes). About texts aren't shown to listeners; they shape each song's cover.
-3. Click **Upload**. The first time a collection appears, the Studio asks for its display name and **art theme**; every cover in that collection is generated from the theme plus each song's title and About text (version notes are left out).
-4. A song goes live as soon as both A and B are uploaded, and gets a cover at that point. Upload B later and it goes live then.
+1. Open `/studio`, sign in, and drop song files or a folder (or use Choose files / Choose folder). **Any file names work.** Audio can be mp3, m4a, aac, wav, flac, ogg or aiff, at any size; `.txt`/`.md` files are taken as lyrics.
+2. **Sort your files:** each audio file gets a row where you pick its **collection** (an existing one, or **New collection…**), its **song title** (suggestions list the collection's songs, so a B file can join an existing song) and its **version** (A or B). **Put all in** sets the collection for every row at once. The Studio pre-fills what it can:
+   - from the name: `02 - Copper Light (B).wav`, `copper-light_b.mp3` or `Copper Light version B.flac` → "Copper Light", version B (track numbers and A/B/v1/v2 markers are recognised); two files with the same name and no marker become A and B;
+   - from the folder: a folder named like a collection goes there, a new folder name proposes a new collection; otherwise the collection you used last;
+   - files already named `[collection]_[track name]_[A|B].[ext]` (e.g. `vol03_Copper Light_A.wav`, with `…_lyrics.txt` beside them) fill in exactly.
+   Lyrics files attach to the song whose title matches their name (or pick the song for them). Problems – no collection, no title, two files as the same version of a song – are highlighted and hold the upload until fixed.
+3. Below the sorter, each song shows what will happen (new, replaces a version, goes live once the other version arrives) and an **About** box for pasting lyrics (or a story or notes). Lyrics are what captions use; About texts aren't shown to listeners otherwise, and they shape each song's cover.
+4. Click **Upload**. The first time a collection appears, the Studio asks for its display name and **art theme**; every cover in that collection is generated from the theme plus each song's title and About text (version notes are left out). Files are stored under the standard name `[collection]_[title]_[A|B].[ext]` whatever they were called.
+5. A song goes live as soon as both A and B are uploaded, and gets a cover at that point. Upload B later and it goes live then.
 
 ### Captions (timed lyrics)
 
