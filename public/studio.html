@@ -237,6 +237,36 @@
             margin-top: 14px;
         }
 
+        /* Room skin picker: which room listeners hear this collection in */
+        .room-pick {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-top: 12px;
+        }
+
+        .room-pick label.field {
+            flex: 0 1 240px;
+            margin: 0;
+        }
+
+        .room-thumb {
+            flex: none;
+            width: 128px;
+            aspect-ratio: 16 / 9;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.06) center / cover;
+            border: 1px solid var(--line-soft);
+        }
+
+        .room-blurb {
+            flex: 1 1 200px;
+            margin-top: 22px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--muted);
+        }
+
         label.field > span {
             display: block;
             font-size: 12px;
@@ -707,6 +737,17 @@
             .map(([k, label]) => `<option value="${k}" ${k === (value || 'lyrics') ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
         let catalog = { collections: [] };
         let songsPerCollection = 10;
+        // Room skins from /skins.json (the listening room and the API read the same file).
+        let skins = [{ id: 'default', name: 'KŮA Room', blurb: 'The original room.', image: '/assets/scene-wide.jpg' }];
+        fetch('/skins.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : null)).then((data) => {
+            if (data?.skins?.length) {
+                skins = data.skins;
+                if (catalog.collections.length) renderCollections();
+            }
+        }).catch(() => {});
+        const skinById = (id) => skins.find((s) => s.id === id) || skins[0];
+        const roomPreview = (s) => `<div class="room-thumb" data-room-thumb style="background-image:url('${encodeURI(s.image)}')"></div>
+            <p class="room-blurb" data-room-blurb>${esc(s.blurb || '')}</p>`;
         let batch = new Map(); // collectionId → { id, folders:Set, songs: Map }
         let badFiles = [];
         let uploading = false;
@@ -1237,6 +1278,12 @@
                         <label class="field" style="flex:1 1 200px;margin:0"><span>Name</span><input type="text" data-field="name" value="${esc(c.name)}" maxlength="40"></label>
                         <label class="field" style="flex:3 1 320px;margin:0"><span>Art theme</span><textarea data-field="theme" maxlength="500" style="min-height:62px">${esc(c.theme)}</textarea></label>
                     </div>
+                    <div class="room-pick">
+                        <label class="field"><span>Room (what listeners see around this collection)</span>
+                            <select data-field="skin">${skins.map((s) => `<option value="${esc(s.id)}" ${s.id === skinById(c.skin).id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>
+                        </label>
+                        ${roomPreview(skinById(c.skin))}
+                    </div>
                     <div class="row" style="margin-top:10px;justify-content:flex-end">
                         <button class="btn ghost small" data-act="regen-all" ${live ? '' : 'disabled'}>Regenerate all covers</button>
                         <button class="btn small" data-act="save-collection">Save</button>
@@ -1322,7 +1369,8 @@
             switch (btn.dataset.act) {
                 case 'save-collection':
                     act('Collection saved.', () => api('/api/admin/collection', { method: 'POST', body: {
-                        id: c.id, name: card.querySelector('[data-field=name]').value, theme: card.querySelector('[data-field=theme]').value
+                        id: c.id, name: card.querySelector('[data-field=name]').value, theme: card.querySelector('[data-field=theme]').value,
+                        skin: card.querySelector('[data-field=skin]').value
                     } }));
                     break;
                 case 'delete-collection':
@@ -1372,6 +1420,13 @@
         });
 
         $('collections').addEventListener('change', (e) => {
+            // Preview the chosen room straight away; Save stores it.
+            if (e.target.matches('[data-field=skin]')) {
+                const s = skinById(e.target.value), card = e.target.closest('[data-c]');
+                card.querySelector('[data-room-thumb]').style.backgroundImage = `url('${encodeURI(s.image)}')`;
+                card.querySelector('[data-room-blurb]').textContent = s.blurb || '';
+                return;
+            }
             if (!e.target.matches('[data-title]')) return;
             const c = findCollection(e.target.closest('[data-c]').dataset.c);
             const songId = e.target.closest('[data-s]').dataset.s;

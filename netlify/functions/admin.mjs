@@ -1,4 +1,5 @@
 import { coverProvider } from '../lib/cover.mjs';
+import skinList from '../../public/skins.json' with { type: 'json' };
 import {
     ABOUT_KINDS, SONGS_PER_COLLECTION, checkPassword, clearCookie, deleteAudio, findCollection, isAdmin,
     json, readCatalog, sessionCookie, slug, store, writeCatalog
@@ -32,7 +33,8 @@ export default async (req) => {
         return json({ votes: all.filter(Boolean) });
     }
 
-    // Create or update a collection: { id, name?, theme?, artist? }
+    // Create or update a collection: { id, name?, theme?, artist?, skin? }
+    // skin is a room id from public/skins.json; 'default' clears it.
     if (route === 'collection' && method === 'POST') {
         const id = slug(body.id);
         if (!id) return json({ error: 'Collection id required' }, 400);
@@ -43,6 +45,11 @@ export default async (req) => {
         }
         for (const field of ['name', 'theme', 'artist']) {
             if (typeof body[field] === 'string' && body[field].trim()) c[field] = body[field].trim();
+        }
+        if (body.skin !== undefined) {
+            if (!SKIN_IDS.has(body.skin)) return json({ error: 'Unknown room skin' }, 400);
+            if (body.skin === 'default') delete c.skin;
+            else c.skin = body.skin;
         }
         await writeCatalog(catalog);
         return json({ collection: c });
@@ -116,6 +123,8 @@ export default async (req) => {
 
     return json({ error: 'Not found' }, 404);
 };
+
+const SKIN_IDS = new Set(skinList.skins.map((s) => s.id));
 
 async function removeSongFiles(song) {
     const jobs = [song.v1, song.v2].filter(Boolean).map((v) => deleteAudio(v.key));

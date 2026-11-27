@@ -97,6 +97,7 @@ export function publicCatalog(catalog) {
             .map((c) => ({
                 id: c.id,
                 name: c.name,
+                skin: c.skin || 'default',
                 total: SONGS_PER_COLLECTION,
                 songs: c.order
                     .map((id) => c.songs[id])

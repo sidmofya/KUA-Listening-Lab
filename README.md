@@ -10,7 +10,7 @@ Listeners hear two versions of each song on a two-deck hi-fi and vote for the on
 - **Background listening:** music keeps playing with the phone locked or the browser in the background, including continuous play into the next song; the lock screen / Control Centre shows the song, cover and play/pause/next/previous. On iPhone the music plays directly from the audio element (iOS suspends Web Audio when locked), so the VU needles are simulated and the vote-card volume dip isn't available there.
 - **Drum along:** tapping the oxblood disc on the wall plays a synthesised djembe hit – deep bass at the centre, rising through tone to a bright slap at the rim – with a copper ripple where it was struck. A one-time hint mentions it after about 20 seconds of listening. The disc's position lives in `CONFIG.overlays.drum` (adjust with `?calibrate`).
 - Listeners enter without signing in; the first vote of each browser session asks for a first name, which later votes reuse.
-- **Top nav** switches collections.
+- **Top nav** switches collections. Each collection can have its own **room** (see Room skins below); switching collections crossfades into that room.
 - A/B order is randomised per listener and song; the vote records the real version (`v1` = file A, `v2` = file B).
 - **Links:** `/vol03` opens a collection and `/vol03/copper-light` opens a song (after the name screen); the address bar always shows the current song. **Share** buttons sit in the song picker (song and collection), on the thank-you card after each vote, and on the collection-complete card. Phones get the native share sheet; elsewhere the link is copied. The Studio has a **Copy link** button for every live song and collection.
 
@@ -33,6 +33,15 @@ Listeners hear two versions of each song on a two-deck hi-fi and vote for the on
 In the Studio you can also reorder songs (drag, or ↑ ↓), rename them, edit About texts, regenerate covers (AI or generative), replace a version (upload the same filename again) and delete songs or collections. A collection holds up to 10 songs.
 
 **Covers:** with `OPENAI_API_KEY` set, covers come from OpenAI's `gpt-image-2` (change with `OPENAI_IMAGE_MODEL`), run in OpenAI's background mode because an image can take longer than a Netlify function may run; the Studio shows a spinner and collects the image when it's ready (usually 10–40 seconds). Without an OpenAI key but with `GEMINI_API_KEY`, covers come from Gemini's image models (these need billing enabled; the free tier allows no images). With no key, no credits, an unverified OpenAI organization, or a timeout, the Studio falls back to generative art drawn from the theme's colours and mood, and labels it so you can retry with AI later. Tune OpenAI with `OPENAI_IMAGE_QUALITY` (`low`, `medium`, `high`) and `OPENAI_TEXT_MODEL`; tune Gemini with `COVER_MODELS` and `COVER_TIMEOUT_MS`.
+
+## Room skins (KwaZuri)
+
+A collection can be heard in one of six rooms: the original **KŮA Room** or one of KwaZuri's five regions, **Harmonic Plains**, **Rhythmic Ridge**, **Melodic Forests**, **Silent Sands** and **Vibrato Valleys**. Each is the same room (same camera and furniture) restyled after its region: walls, floor, light, speaker fabric, the wall drum and the accent colour. The drum sounds the same in every room.
+
+- **Choosing:** Studio → the collection → **Room**, then **Save**. Listeners see it next time they open or switch to that collection (with a short crossfade, or instantly with reduced motion). Collections without a room use the KŮA Room.
+- **The list** lives in `public/skins.json`: each room's image, accent colours, drum ripple/glow colours and optional calibration nudges. The listening room, the Studio and the Studio API all read it.
+- **Renders:** `docs/skin-prompts.md` has the prompt for each region. `python scripts/draft_skins.py` drafts all five with OpenAI image editing from today's render (needs Pillow and `OPENAI_API_KEY` in `.env`); final renders replace the drafts under the same filenames in `public/assets/skins/`.
+- **Previewing and calibrating:** `/?skin=<id>` shows any room; `/?calibrate&skin=<id>` lets you drag the overlay handles onto that render and prints the positions to paste into the room's `"overlays"` in `skins.json`. If a room's image fails to load, listeners simply stay in the room they're in.
 
 ## Hosting (Netlify)
 
