@@ -746,7 +746,9 @@
             }
         }).catch(() => {});
         const skinById = (id) => skins.find((s) => s.id === id) || skins[0];
-        const roomPreview = (s) => `<div class="room-thumb" data-room-thumb style="background-image:url('${encodeURI(s.image)}')"></div>
+        // Thumbnails come small from Netlify's image service (~12 KB instead of the full render).
+        const roomThumb = (s) => `/.netlify/images?url=${encodeURIComponent(s.image)}&w=480`;
+        const roomPreview = (s) => `<div class="room-thumb" data-room-thumb style="background-image:url('${roomThumb(s)}')"></div>
             <p class="room-blurb" data-room-blurb>${esc(s.blurb || '')}</p>`;
         let batch = new Map(); // collectionId → { id, folders:Set, songs: Map }
         let badFiles = [];
@@ -1423,7 +1425,7 @@
             // Preview the chosen room straight away; Save stores it.
             if (e.target.matches('[data-field=skin]')) {
                 const s = skinById(e.target.value), card = e.target.closest('[data-c]');
-                card.querySelector('[data-room-thumb]').style.backgroundImage = `url('${encodeURI(s.image)}')`;
+                card.querySelector('[data-room-thumb]').style.backgroundImage = `url('${roomThumb(s)}')`;
                 card.querySelector('[data-room-blurb]').textContent = s.blurb || '';
                 return;
             }
