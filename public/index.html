@@ -396,7 +396,7 @@
         .hint {
             position: absolute;
             left: 50%;
-            bottom: 140px;
+            bottom: 74px;
             transform: translateX(-50%);
             font-size: 13px;
             white-space: nowrap;
@@ -409,12 +409,14 @@
             opacity: 0;
         }
 
-        /* A/B slider: a fader slot and cap, so it reads as something to drag. */
+        /* A/B slider: a fader slot and cap, so it reads as something to drag. It rides above
+           whatever is in shot (placeSlider), gliding with the camera. */
         .xfader {
             position: absolute;
             left: 50%;
-            bottom: 74px;
-            transform: translateX(-50%);
+            top: 50%;
+            transform: translate(-50%, -100%);
+            transition: left 1.1s cubic-bezier(0.65, 0, 0.25, 1), top 1.1s cubic-bezier(0.65, 0, 0.25, 1);
             width: 240px;
             font-family: var(--mono);
             font-size: 12px;
@@ -427,8 +429,14 @@
         .xfader-row {
             display: flex;
             align-items: center;
-            gap: 24px;
-            padding: 12px 4px;
+            gap: 20px;
+            padding: 10px 16px;
+            border-radius: 22px;
+            /* A soft backing so it reads on light walls as well as dark ones */
+            background: rgba(12, 10, 8, 0.34);
+            border: 1px solid var(--line-soft);
+            -webkit-backdrop-filter: blur(6px);
+            backdrop-filter: blur(6px);
             touch-action: none;
             cursor: grab;
             outline: none;
@@ -920,12 +928,11 @@
             }
 
             .xfader {
-                width: 190px;
-                bottom: 70px;
+                width: 200px;
             }
 
             .hint {
-                bottom: 136px;
+                bottom: 66px;
                 font-size: 12px;
             }
         }
@@ -933,6 +940,10 @@
         @media (prefers-reduced-motion: reduce) {
             .xfader.nudge .xfader-knob {
                 animation: none;
+            }
+
+            .xfader {
+                transition: none;
             }
 
             .scene {
@@ -1791,6 +1802,23 @@
             scene.style.transition = animate ? '' : 'none';
             scene.style.transform = `translate(${tx}px, ${ty}px) scale(${S})`;
             cam = { tx, ty, S };
+            placeSlider(animate, W, H);
+        }
+
+        // The slider sits just above what's in shot: the amplifier in the room view, the record
+        // player in A or B. Anchors come from the calibrated overlays, so they follow each room.
+        function placeSlider(animate, W, H) {
+            const xf = $('xfader'), o = CONFIG.overlays;
+            const a = view === 'A' ? { x: o.recA.x, y: o.recA.y - 34 }
+                : view === 'B' ? { x: o.recB.x, y: o.recB.y - 34 }
+                : { x: (o.meterL.x + o.meterR.x) / 2, y: o.meterL.face[1] - 38 };
+            const half = xf.offsetWidth / 2, h = xf.offsetHeight;
+            // Always fully on screen, clear of the top edge and of the hint and buttons at the bottom.
+            const x = clamp(cam.tx + a.x * cam.S, half + 8, W - half - 8);
+            const y = clamp(cam.ty + a.y * cam.S, h + 12, H - 100);
+            xf.style.transition = animate ? '' : 'none';
+            xf.style.left = `${x}px`;
+            xf.style.top = `${y}px`;
         }
 
         // ---------------------------------------------------------------
@@ -2276,8 +2304,11 @@
         // Song & collection selection
         // ---------------------------------------------------------------
 
+        // autoplay: true or 'A' starts deck A, 'B' starts deck B. If the camera is already on that
+        // deck it stays there, so skipping songs on B doesn't zoom out and back in.
         async function selectSong(idx, { autoplay = false, keepView = false } = {}) {
             const token = ++loadToken;
+            const autoKey = autoplay === 'B' ? 'B' : 'A';
             endedVersions = new Set();
             savePositions();
             Object.values(decks).forEach(disposeDeck);
@@ -2285,7 +2316,7 @@
             song = collection.songs[songIdx];
             updateAddress();
             live = null;
-            view = 'wide';
+            if (!(autoplay && view === autoKey)) view = 'wide';
             loading = true;
             applyCamera();
             closeMenus();
@@ -2304,7 +2335,16 @@
             if (token !== loadToken) return;
             loading = false;
             updateUI();
-            if (autoplay) pressDeck('A', { keepView, auto: true });
+            if (autoplay) pressDeck(autoKey, { keepView, auto: true });
+        }
+
+        // Skipping from the song picker: if music was playing, the new song starts straight away
+        // on the same slider position (A, B or the room view); if paused, it waits.
+        function goToSong(idx) {
+            if (!song) return;
+            if (idx === songIdx) return closeMenus();
+            const playing = !!live && isPlaying(decks[live]);
+            selectSong(idx, { autoplay: playing && (view === 'B' ? 'B' : 'A'), keepView: view === 'wide' });
         }
 
         function selectCollection(ci, options) {
@@ -2966,10 +3006,10 @@
             $('pickerList').addEventListener('click', (e) => {
                 if (e.target.closest('[data-share]')) return share('collection');
                 const b = e.target.closest('[data-s]');
-                if (b) selectSong(Number(b.dataset.s));
+                if (b) goToSong(Number(b.dataset.s));
             });
-            $('prevSong').addEventListener('click', () => song && selectSong(songIdx - 1));
-            $('nextSong').addEventListener('click', () => song && selectSong(songIdx + 1));
+            $('prevSong').addEventListener('click', () => goToSong(songIdx - 1));
+            $('nextSong').addEventListener('click', () => goToSong(songIdx + 1));
             document.addEventListener('pointerdown', (e) => {
                 if (!e.target.closest('#pickerPanel')) closeMenus();
             });
