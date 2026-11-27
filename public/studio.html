@@ -304,6 +304,100 @@
             font-size: 26px;
         }
 
+        /* ---------- Sorter: one row per dropped file ---------- */
+
+        .sorter-head {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin: 4px 0 8px;
+        }
+
+        .sorter-head select {
+            width: auto;
+            margin-left: 6px;
+        }
+
+        .sort-row {
+            display: grid;
+            grid-template-columns: minmax(140px, 1.3fr) minmax(130px, 1fr) minmax(150px, 1.4fr) auto auto;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .sort-row.bad select, .sort-row.bad input {
+            border-color: var(--bad);
+        }
+
+        .sort-row .note {
+            grid-column: 1 / -1;
+        }
+
+        .sort-file {
+            display: grid;
+            min-width: 0;
+            font-size: 13px;
+        }
+
+        .sort-file span:first-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sort-file .mono {
+            font-size: 10.5px;
+            color: var(--muted);
+        }
+
+        .sort-row select, .sort-row input {
+            padding: 6px 8px;
+            font-size: 13px;
+        }
+
+        .sort-row.text label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ab {
+            display: flex;
+        }
+
+        .ab button {
+            width: 34px;
+            padding: 6px 0;
+            font-family: var(--mono);
+            font-size: 12px;
+            border: 1px solid var(--line-soft);
+            color: var(--muted);
+        }
+
+        .ab button + button {
+            border-left: 0;
+        }
+
+        .ab button[aria-pressed="true"] {
+            background: var(--copper);
+            border-color: var(--copper-lt);
+            color: #fff;
+        }
+
+        @media (max-width: 640px) {
+            .sort-row {
+                grid-template-columns: 1fr auto auto;
+            }
+
+            .sort-file, .sort-row select[data-f], .sort-row input[data-f] {
+                grid-column: 1 / -1;
+            }
+        }
+
         /* ---------- Preview ---------- */
 
         .group {
@@ -736,18 +830,19 @@
                     <span class="mono" id="aiStatus"></span>
                 </div>
                 <div class="drop" id="drop">
-                    <strong>Drop a collection folder or song files</strong>
-                    <p>Name files <code>[collection]_[track name]_A.mp3</code>, <code>…_B.mp3</code> and, optionally, an About text: <code>…_lyrics.txt</code>, <code>…_story.txt</code>, <code>…_versions.txt</code> or <code>…_notes.txt</code>.<br>
-                        Example: <code>vol03_Copper Light_A.wav</code></p>
+                    <strong>Drop song files or a folder</strong>
+                    <p>Any file names. Next you'll pick the collection, song title and version (A or B) for each file, and can add lyrics as a .txt file or by pasting them.<br>
+                        Files already named like <code>vol03_Copper Light_A.wav</code> fill themselves in.</p>
                     <div class="row" style="justify-content:center">
                         <button class="btn ghost small" type="button" id="pickFiles">Choose files</button>
                         <button class="btn ghost small" type="button" id="pickFolder">Choose folder</button>
                     </div>
-                    <input type="file" id="fileInput" multiple hidden accept="audio/*,.txt,.md,.wav,.aif,.aiff,.flac">
+                    <input type="file" id="fileInput" multiple hidden accept="audio/*,.txt,.md,.wav,.aif,.aiff,.flac,.m4a,.ogg,.opus">
                     <input type="file" id="folderInput" webkitdirectory multiple hidden>
                 </div>
 
                 <div id="preview" hidden>
+                    <div id="sorter"></div>
                     <div id="groups"></div>
                     <div class="bad-files" id="badFiles"></div>
                     <div class="row" style="margin-top:16px;justify-content:flex-end">
@@ -981,32 +1076,302 @@
             return { error: `last part must be A, B, lyrics, story, versions or notes (found "${parts[parts.length - 1]}")` };
         }
 
-        async function addFiles(items) {
-            if (uploading) return toast('Wait for the current upload to finish.');
-            for (const { file, folder } of items) {
-                if (file.name.startsWith('.')) continue; // .DS_Store and friends
-                const parsed = parseFile(file);
-                if (parsed.error) {
-                    badFiles.push(`${file.name} – ${parsed.error}`);
-                    continue;
-                }
-                let group = batch.get(parsed.collectionId);
-                if (!group) batch.set(parsed.collectionId, group = { id: parsed.collectionId, folders: new Set(), songs: new Map() });
-                if (folder) group.folders.add(folder);
-                const key = slug(parsed.title);
-                let row = group.songs.get(key);
-                if (!row) group.songs.set(key, row = { title: parsed.title, A: null, B: null, lyrics: '', aboutKind: 'lyrics', lyricsFromFile: false, state: 'ready', note: '', progress: 0 });
-                if (parsed.kind === 'about') {
-                    row.lyrics = (await file.text()).replace(/\r\n/g, '\n').trim();
-                    row.aboutKind = parsed.aboutKind;
-                    row.lyricsFromFile = true;
-                } else {
-                    row[parsed.kind] = file;
-                    if (parsed.kind === 'A') row.title = parsed.title;
+        // ---------------------------------------------------------------
+        // Sorter: drop files with any names, then set each one's collection, song title
+        // and version here. Standard names ([collection]_[title]_[A|B]) fill in by themselves;
+        // other names are guessed from. The rows become `batch`, which the preview and
+        // upload below use as before. Stored files get the standard name automatically.
+        // ---------------------------------------------------------------
+
+        let pending = [];                   // audio rows: { uid, file, collection, title, version }
+        let textFiles = [];                 // lyrics files: { uid, file, text, kind, target }
+        const newCollections = new Map();   // id → name, for collections created in this upload
+        const lyricsBySong = new Map();     // `${collectionId}|${slug(title)}` → { text, kind, fromFile }
+        let uidSeq = 0;
+        const LAST_KEY = 'studio:lastCollection';
+        const songKey = (collectionId, title) => `${collectionId}|${slug(title)}`;
+
+        const collectionName = (id) => findCollection(id)?.name || newCollections.get(id) || prettyName(id);
+        const allCollectionIds = () => [...catalog.collections.map((c) => c.id), ...[...newCollections.keys()].filter((id) => !findCollection(id))];
+
+        function rememberCollection(id) {
+            try { localStorage.setItem(LAST_KEY, id); } catch (e) { /* private mode */ }
+        }
+
+        function defaultCollection(folder) {
+            if (folder) {
+                const s = slug(folder);
+                const match = catalog.collections.find((c) => c.id === s || slug(c.name) === s);
+                if (match) return match.id;
+                if (s) {
+                    if (!newCollections.has(s)) newCollections.set(s, folder.trim());
+                    return s;
                 }
             }
-            renderBatch();
+            let last = '';
+            try { last = localStorage.getItem(LAST_KEY) || ''; } catch (e) { /* private mode */ }
+            if (last && allCollectionIds().includes(last)) return last;
+            return catalog.collections.at(-1)?.id || '';
         }
+
+        // "02 - Copper Light (B).wav" → { title: 'Copper Light', version: 'B' }
+        function guessFromName(name) {
+            let base = name.replace(/\.[^.]+$/, '').replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
+            base = base.replace(/^\d{1,3}\s*[-.)]?\s+/, '');
+            let version = null;
+            const m = base.match(/[\s\-([]+(?:(?:version|ver|mix|take)\s*)?(a|b|v1|v2)[)\]]?$/i);
+            if (m) {
+                version = /^(a|v1)$/i.test(m[1]) ? 'A' : 'B';
+                base = base.slice(0, m.index);
+            }
+            base = base.replace(/[\s\-–]+(lyrics|lyric|words)$/i, '');
+            let title = (base.includes(' ') ? base.replace(/\s+-\s+/g, ' ') : base.replace(/-+/g, ' ')).replace(/\s+/g, ' ').trim();
+            if (title && title === title.toLowerCase()) title = title.replace(/\b\p{L}/gu, (ch) => ch.toUpperCase());
+            return { title, version };
+        }
+
+        async function addFiles(items) {
+            if (uploading) return toast('Wait for the current upload to finish.');
+            const added = [];
+            for (const { file, folder } of items) {
+                if (file.name.startsWith('.')) continue; // .DS_Store and friends
+                const std = parseFile(file);
+                if (AUDIO_EXT.test(file.name)) {
+                    let row;
+                    if (!std.error && (std.kind === 'A' || std.kind === 'B')) {
+                        const known = findCollection(std.collectionId);
+                        if (!known && !newCollections.has(std.collectionId)) newCollections.set(std.collectionId, prettyName(std.collectionId));
+                        row = { collection: std.collectionId, title: std.title, version: std.kind, sure: true };
+                    } else {
+                        const g = guessFromName(file.name);
+                        row = { collection: defaultCollection(folder), title: g.title, version: g.version, sure: !!g.version };
+                    }
+                    const r = { uid: ++uidSeq, file, ...row };
+                    pending.push(r);
+                    added.push(r);
+                } else if (TEXT_EXT.test(file.name)) {
+                    const text = (await file.text()).replace(/\r\n/g, '\n').trim();
+                    let target = '', kind = 'lyrics', title = '';
+                    if (!std.error && std.kind === 'about') {
+                        kind = std.aboutKind;
+                        title = std.title;
+                        target = songKey(std.collectionId, std.title);
+                    } else {
+                        title = guessFromName(file.name).title;
+                    }
+                    textFiles.push({ uid: ++uidSeq, file, text, kind, target, title });
+                } else {
+                    badFiles.push(`${file.name} – not an audio or text file`);
+                }
+            }
+            // Files without a version marker: the first of a pair is A, the next B.
+            const groups = new Map();
+            for (const r of added.filter((x) => !x.version).sort((a, b) => a.file.name.localeCompare(b.file.name))) {
+                const k = songKey(r.collection, r.title);
+                const taken = pending.filter((x) => x !== r && x.version && songKey(x.collection, x.title) === k).map((x) => x.version);
+                const seen = groups.get(k) || [];
+                r.version = ['A', 'B'].find((v) => !taken.includes(v) && !seen.includes(v)) || 'A';
+                groups.set(k, [...seen, r.version]);
+            }
+            matchTextFiles();
+            refreshSorter();
+        }
+
+        // Lyrics files attach to the song whose title matches their name best.
+        function matchTextFiles() {
+            const songs = new Map();
+            for (const r of pending) if (r.collection && slug(r.title)) songs.set(songKey(r.collection, r.title), r);
+            for (const t of textFiles) {
+                if (!t.target || !songs.has(t.target)) {
+                    const s = slug(t.title);
+                    const hit = [...songs.keys()].find((k) => k.split('|')[1] === s)
+                        || (s && [...songs.keys()].find((k) => k.split('|')[1].includes(s) || s.includes(k.split('|')[1])));
+                    t.target = hit || (t.target && songs.has(t.target) ? t.target : '');
+                }
+                if (t.target && !lyricsBySong.get(t.target)?.typed) lyricsBySong.set(t.target, { text: t.text, kind: t.kind, fromFile: t.file.name });
+            }
+        }
+
+        function sorterProblems() {
+            const problems = new Map();
+            const byVersion = new Map();
+            for (const r of pending) {
+                if (!r.collection) problems.set(r.uid, 'Choose a collection.');
+                else if (!slug(r.title)) problems.set(r.uid, 'Add a song title.');
+                else {
+                    const k = `${songKey(r.collection, r.title)}|${r.version}`;
+                    if (byVersion.has(k)) {
+                        const msg = `Two files are set as version ${r.version} of “${r.title}”.`;
+                        problems.set(r.uid, msg);
+                        problems.set(byVersion.get(k), msg);
+                    } else byVersion.set(k, r.uid);
+                }
+            }
+            return problems;
+        }
+
+        // The sorter's rows become the song-by-song `batch` used by the preview and upload.
+        function buildBatch() {
+            const problems = sorterProblems();
+            batch = new Map();
+            for (const r of pending) {
+                if (problems.has(r.uid)) continue;
+                let g = batch.get(r.collection);
+                if (!g) batch.set(r.collection, g = { id: r.collection, name: newCollections.get(r.collection) || null, folders: new Set(), songs: new Map() });
+                const k = slug(r.title);
+                let row = g.songs.get(k);
+                if (!row) g.songs.set(k, row = { title: r.title.trim(), A: null, B: null, lyrics: '', aboutKind: 'lyrics', lyricsFromFile: false, state: 'ready', note: '', progress: 0 });
+                row[r.version] = r.file;
+            }
+            for (const [k, l] of lyricsBySong) {
+                const [cid, sk] = k.split('|');
+                const row = batch.get(cid)?.songs.get(sk);
+                if (!row) continue;
+                row.lyrics = l.text;
+                row.aboutKind = l.kind || 'lyrics';
+                row.lyricsFromFile = !!l.fromFile && !l.typed;
+            }
+            return problems;
+        }
+
+        function renderSorter(problems) {
+            const ids = allCollectionIds();
+            const options = (sel) => `<option value="" ${sel ? '' : 'selected'} disabled>Choose…</option>`
+                + ids.map((id) => `<option value="${esc(id)}" ${id === sel ? 'selected' : ''}>${esc(collectionName(id))}${findCollection(id) ? '' : ' (new)'}</option>`).join('')
+                + '<option value="__new">New collection…</option>';
+            const titlesFor = (cid) => {
+                const c = findCollection(cid);
+                const names = new Set([...(c ? c.order.map((id) => c.songs[id]?.title).filter(Boolean) : []), ...pending.filter((r) => r.collection === cid).map((r) => r.title.trim()).filter(Boolean)]);
+                return `<datalist id="titles-${esc(cid)}">${[...names].map((t) => `<option value="${esc(t)}"></option>`).join('')}</datalist>`;
+            };
+            const songOptions = (sel) => {
+                const keys = [...new Set(pending.filter((r) => r.collection && slug(r.title)).map((r) => songKey(r.collection, r.title)))];
+                return `<option value="" ${sel ? '' : 'selected'}>Not attached</option>` + keys.map((k) => {
+                    const r = pending.find((x) => songKey(x.collection, x.title) === k);
+                    return `<option value="${esc(k)}" ${k === sel ? 'selected' : ''}>${esc(r.title)} · ${esc(collectionName(r.collection))}</option>`;
+                }).join('');
+            };
+            $('sorter').innerHTML = pending.length || textFiles.length ? `
+                <div class="sorter-head">
+                    <div><strong>Sort your files</strong> <span class="mono">${pending.length} audio${textFiles.length ? ` · ${textFiles.length} lyrics` : ''}</span></div>
+                    ${pending.length ? `<label class="mono">Put all in <select data-all ${uploading ? 'disabled' : ''}>${options('')}</select></label>` : ''}
+                </div>
+                ${pending.map((r) => `<div class="sort-row ${problems.has(r.uid) ? 'bad' : ''}" data-u="${r.uid}">
+                    <div class="sort-file"><span title="${esc(r.file.name)}">${esc(r.file.name)}</span><span class="mono">${mb(r.file.size)}</span></div>
+                    <select data-f="collection" aria-label="Collection" ${uploading ? 'disabled' : ''}>${options(r.collection)}</select>
+                    <input type="text" data-f="title" value="${esc(r.title)}" placeholder="Song title" aria-label="Song title" maxlength="80" list="titles-${esc(r.collection)}" ${uploading ? 'disabled' : ''}>
+                    <div class="ab" role="group" aria-label="Version">${['A', 'B'].map((v) => `<button type="button" data-v="${v}" aria-pressed="${r.version === v}" ${uploading ? 'disabled' : ''}>${v}</button>`).join('')}</div>
+                    <button type="button" class="chip" data-del title="Remove this file" ${uploading ? 'disabled' : ''}>✕</button>
+                    ${problems.has(r.uid) ? `<p class="note bad">${esc(problems.get(r.uid))}</p>` : ''}
+                </div>`).join('')}
+                ${textFiles.map((t) => `<div class="sort-row text" data-t="${t.uid}">
+                    <div class="sort-file"><span title="${esc(t.file.name)}">${esc(t.file.name)}</span><span class="mono">${ABOUT_KINDS[t.kind] || 'Lyrics'}</span></div>
+                    <label class="mono" style="grid-column: span 3">for <select data-lyrics-for ${uploading ? 'disabled' : ''}>${songOptions(t.target)}</select></label>
+                    <button type="button" class="chip" data-del-text title="Remove this file" ${uploading ? 'disabled' : ''}>✕</button>
+                </div>`).join('')}
+                ${[...new Set(pending.map((r) => r.collection).filter(Boolean))].map(titlesFor).join('')}` : '';
+        }
+
+        // Re-derive everything after a change in the sorter.
+        function refreshSorter({ keepSorter = false } = {}) {
+            const problems = buildBatch();
+            if (!keepSorter) renderSorter(problems);
+            renderBatch();
+            if (problems.size && !uploading) {
+                $('uploadBatch').disabled = true;
+                $('uploadBatch').textContent = `Fix ${problems.size} highlighted file${problems.size > 1 ? 's' : ''}`;
+            }
+            $('preview').hidden = !pending.length && !textFiles.length && !badFiles.length;
+        }
+
+        // Renaming a song (or moving it to another collection) carries its lyrics along.
+        function moveRow(row, change) {
+            const before = songKey(row.collection, row.title);
+            Object.assign(row, change);
+            const after = songKey(row.collection, row.title);
+            if (before === after || pending.some((r) => r !== row && songKey(r.collection, r.title) === before)) return;
+            if (lyricsBySong.has(before) && !lyricsBySong.has(after)) {
+                lyricsBySong.set(after, lyricsBySong.get(before));
+                lyricsBySong.delete(before);
+                textFiles.forEach((tf) => { if (tf.target === before) tf.target = after; });
+            }
+        }
+
+        function askNewCollection() {
+            const name = (prompt('Name of the new collection (listeners see this):') || '').trim();
+            const id = slug(name);
+            if (!id) return '';
+            const existing = catalog.collections.find((c) => c.id === id || slug(c.name) === id);
+            if (existing) return existing.id;
+            newCollections.set(id, name);
+            return id;
+        }
+
+        $('sorter').addEventListener('change', (e) => {
+            if (uploading) return;
+            if (e.target.matches('[data-all]')) {
+                let id = e.target.value;
+                if (id === '__new') id = askNewCollection();
+                if (id) {
+                    pending.forEach((r) => moveRow(r, { collection: id }));
+                    rememberCollection(id);
+                }
+                matchTextFiles();
+                return refreshSorter();
+            }
+            if (e.target.matches('[data-lyrics-for]')) {
+                const t = textFiles.find((x) => x.uid === Number(e.target.closest('[data-t]').dataset.t));
+                if (t.target && lyricsBySong.get(t.target)?.fromFile === t.file.name) lyricsBySong.delete(t.target);
+                t.target = e.target.value;
+                if (t.target) lyricsBySong.set(t.target, { text: t.text, kind: t.kind, fromFile: t.file.name });
+                return refreshSorter();
+            }
+            const row = pending.find((x) => x.uid === Number(e.target.closest('[data-u]')?.dataset.u));
+            if (!row) return;
+            if (e.target.matches('[data-f="collection"]')) {
+                const id = e.target.value === '__new' ? askNewCollection() : e.target.value;
+                if (id) {
+                    moveRow(row, { collection: id });
+                    rememberCollection(id);
+                }
+                matchTextFiles();
+                return refreshSorter();
+            }
+            if (e.target.matches('[data-f="title"]')) {
+                moveRow(row, { title: e.target.value });
+                matchTextFiles();
+                refreshSorter();
+            }
+        });
+
+        // Typing a title updates the preview below without redrawing the row (focus stays put).
+        $('sorter').addEventListener('input', (e) => {
+            if (!e.target.matches('[data-f="title"]')) return;
+            const row = pending.find((x) => x.uid === Number(e.target.closest('[data-u]').dataset.u));
+            moveRow(row, { title: e.target.value });
+            refreshSorter({ keepSorter: true });
+        });
+
+        $('sorter').addEventListener('click', (e) => {
+            if (uploading) return;
+            const v = e.target.closest('[data-v]');
+            const rowEl = e.target.closest('[data-u]');
+            if (v && rowEl) {
+                pending.find((x) => x.uid === Number(rowEl.dataset.u)).version = v.dataset.v;
+                return refreshSorter();
+            }
+            if (e.target.closest('[data-del]') && rowEl) {
+                pending = pending.filter((x) => x.uid !== Number(rowEl.dataset.u));
+                return refreshSorter();
+            }
+            const tEl = e.target.closest('[data-t]');
+            if (e.target.closest('[data-del-text]') && tEl) {
+                const t = textFiles.find((x) => x.uid === Number(tEl.dataset.t));
+                if (t.target && lyricsBySong.get(t.target)?.fromFile === t.file.name) lyricsBySong.delete(t.target);
+                textFiles = textFiles.filter((x) => x !== t);
+                refreshSorter();
+            }
+        });
 
         const drop = $('drop');
         drop.addEventListener('dragover', (e) => {
@@ -1078,13 +1443,13 @@
         function renderBatch() {
             assess();
             const groups = [...batch.values()];
-            $('preview').hidden = !groups.length && !badFiles.length;
+            $('preview').hidden = !groups.length && !badFiles.length && !pending.length && !textFiles.length;
             $('groups').innerHTML = groups.map((g) => {
                 const existing = findCollection(g.id);
                 const folderWarn = [...g.folders].filter((f) => slug(f) !== g.id);
                 return `<div class="group">
                     <div class="group-head">
-                        <div><h2>${esc(existing?.name || prettyName(g.id))}</h2>
+                        <div><h2>${esc(existing?.name || g.name || prettyName(g.id))}</h2>
                             <div class="mono">${esc(g.id)} · ${existing ? `${existing.order.length}/${songsPerCollection} songs` : 'new collection'}${existing && !existing.theme ? ' · needs an art theme' : ''}</div></div>
                     </div>
                     ${folderWarn.length ? `<p class="note warn">Folder “${esc(folderWarn.join(', '))}” doesn't match the collection “${esc(g.id)}” in the filenames. The filenames win.</p>` : ''}
@@ -1127,30 +1492,33 @@
                 row.lyrics = e.target.value;
                 row.lyricsFromFile = false;
             }
+            lyricsBySong.set(`${item.dataset.g}|${item.dataset.k}`, { text: row.lyrics, kind: row.aboutKind, typed: true });
         });
         $('groups').addEventListener('click', (e) => {
             if (!e.target.closest('[data-remove]')) return;
             const item = e.target.closest('.item');
-            const group = batch.get(item.dataset.g);
-            group.songs.delete(item.dataset.k);
-            if (!group.songs.size) batch.delete(group.id);
-            renderBatch();
+            pending = pending.filter((r) => songKey(r.collection, r.title) !== `${item.dataset.g}|${item.dataset.k}`);
+            lyricsBySong.delete(`${item.dataset.g}|${item.dataset.k}`);
+            refreshSorter();
         });
         $('clearBatch').addEventListener('click', () => {
-            batch = new Map();
+            pending = [];
+            textFiles = [];
+            lyricsBySong.clear();
+            newCollections.clear();
             badFiles = [];
-            renderBatch();
+            refreshSorter();
         });
 
         // ---------------------------------------------------------------
         // Theme prompt
         // ---------------------------------------------------------------
 
-        function askTheme(collectionId, existing) {
+        function askTheme(collectionId, existing, suggestedName) {
             return new Promise((resolve) => {
                 $('themeKicker').textContent = existing ? `${existing.name} · ${collectionId}` : `New collection · ${collectionId}`;
                 $('themeTitle').textContent = existing ? 'This collection needs an art theme' : 'Set the art theme';
-                $('themeName').value = existing?.name && existing.name !== collectionId ? existing.name : prettyName(collectionId);
+                $('themeName').value = existing?.name && existing.name !== collectionId ? existing.name : suggestedName || prettyName(collectionId);
                 $('themeText').value = existing?.theme || '';
                 $('themeExamples').innerHTML = THEME_EXAMPLES.map((t) => `<button type="button">${esc(t)}</button>`).join('');
                 $('themeModal').hidden = false;
@@ -1177,14 +1545,14 @@
         // Upload
         // ---------------------------------------------------------------
 
-        async function uploadFile(collectionId, songId, version, file, onProgress) {
+        async function uploadFile(collectionId, songId, version, file, onProgress, storedName = file.name) {
             const parts = Math.max(1, Math.ceil(file.size / CHUNK));
             const rev = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
             const ext = (file.name.split('.').pop() || '').toLowerCase();
             const send = async (i) => {
                 const qs = new URLSearchParams({
                     collection: collectionId, song: songId, version, rev, part: i, parts, size: file.size,
-                    type: file.type || MIME[ext] || 'audio/mpeg', name: file.name
+                    type: file.type || MIME[ext] || 'audio/mpeg', name: storedName
                 });
                 for (let attempt = 1; ; attempt++) {
                     try {
@@ -1219,7 +1587,7 @@
 
                     let collection = findCollection(group.id);
                     if (!collection || !collection.theme) {
-                        const answer = await askTheme(group.id, collection);
+                        const answer = await askTheme(group.id, collection, group.name);
                         if (!answer) {
                             rows.forEach((r) => Object.assign(r, { state: 'skipped', note: 'Skipped – no art theme.' }));
                             renderBatch();
@@ -1240,10 +1608,12 @@
                                 const file = row[k];
                                 if (!file) continue;
                                 setNote(`Uploading ${k} (${mb(file.size)})…`);
+                                // The app does the naming: every file is stored as [collection]_[title]_[A|B].ext.
+                                const ext = (file.name.split('.').pop() || 'mp3').toLowerCase();
                                 song = await uploadFile(group.id, song.id, k === 'A' ? 'v1' : 'v2', file, (p) => {
                                     row.progress = (doneBytes + p * file.size) / totalBytes;
                                     renderBatch();
-                                });
+                                }, `${group.id}_${row.title}_${k}.${ext}`);
                                 doneBytes += file.size;
                             }
                             row.progress = 1;
@@ -1279,8 +1649,17 @@
                 }
             } finally {
                 uploading = false;
+                // Uploaded songs leave the sorter; their results stay in the preview until the next change.
+                const done = new Set();
+                for (const g of batch.values()) for (const [k, r] of g.songs) if (r.state === 'done') done.add(`${g.id}|${k}`);
+                pending = pending.filter((r) => !done.has(songKey(r.collection, r.title)));
+                textFiles = textFiles.filter((x) => !done.has(x.target));
+                for (const k of done) lyricsBySong.delete(k);
                 await refresh().catch(() => {});
+                for (const g of batch.values()) if (findCollection(g.id)) newCollections.delete(g.id);
+                renderSorter(sorterProblems());
                 renderBatch();
+                if (!pending.length) $('uploadBatch').disabled = true;
             }
         }));
 
