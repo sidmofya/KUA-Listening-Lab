@@ -12,7 +12,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,700;1,700&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600&family=Newsreader:ital,opsz@0,6..72;1,6..72&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,700;1,700&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --copper: #b87333;
@@ -27,11 +27,6 @@
             --ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
             --cond: 'Archivo Narrow', 'Arial Narrow', sans-serif;
             --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-            --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
-            --paper: rgba(239, 233, 222, 0.94);
-            --ink: #2a2420;
-            --ink-soft: rgba(42, 36, 32, 0.55);
-            --rust: #8b4513;
         }
 
         [hidden] {
@@ -189,10 +184,6 @@
             transition: width 0.35s ease;
         }
 
-        .panel-left {
-            left: 24px;
-        }
-
         .panel-right {
             right: 24px;
         }
@@ -264,74 +255,6 @@
         .panel-foot {
             border-top: 1px solid var(--line-soft);
             padding: 12px 16px 14px;
-        }
-
-        /* "About this song": a paper liner-notes card, deliberately unlike the glass song picker. */
-        .about {
-            color: var(--ink);
-            background-color: var(--paper);
-            background-image: radial-gradient(rgba(42, 36, 32, 0.05) 1px, transparent 1px);
-            background-size: 3px 3px;
-            border: 0;
-            -webkit-backdrop-filter: none;
-            backdrop-filter: none;
-            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
-        }
-
-        .about .panel-head {
-            font-size: 12px;
-            letter-spacing: 0.08em;
-            padding: 12px 16px 10px;
-            border-bottom: 1px solid rgba(42, 36, 32, 0.16);
-        }
-
-        .about-body {
-            padding: 12px 16px 16px;
-        }
-
-        .about-kind {
-            font-family: var(--mono);
-            font-size: 10px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--rust);
-            margin-bottom: 6px;
-        }
-
-        .about-map {
-            font-family: var(--mono);
-            font-size: 10.5px;
-            line-height: 1.5;
-            color: var(--rust);
-            margin-bottom: 8px;
-        }
-
-        .about-text {
-            font-family: var(--serif);
-            font-size: 15px;
-            line-height: 1.5;
-            white-space: pre-line;
-            max-height: 4.5em;
-            overflow: hidden;
-            -webkit-mask-image: linear-gradient(#000 55%, transparent);
-            mask-image: linear-gradient(#000 55%, transparent);
-        }
-
-        .about-text.muted {
-            font-style: italic;
-            color: var(--ink-soft);
-        }
-
-        .panel-left.expanded {
-            width: 380px;
-        }
-
-        .panel-left.expanded .about-text {
-            max-height: min(58vh, 520px);
-            overflow-y: auto;
-            -webkit-mask-image: none;
-            mask-image: none;
-            padding-right: 6px;
         }
 
         .picker-list {
@@ -928,15 +851,11 @@
                 display: none;
             }
 
-            .panel-left {
-                left: 12px;
-            }
-
             .panel-right {
                 right: 12px;
             }
 
-            .panel-left.expanded, .panel-right.open {
+            .panel-right.open {
                 width: calc(100% - 24px);
                 z-index: 8;
             }
@@ -966,15 +885,6 @@
 
             .panel-foot {
                 padding: 10px 12px;
-            }
-
-            .about-text {
-                font-size: 13px;
-                max-height: 3em;
-            }
-
-            .about-body {
-                padding: 10px 12px 12px;
             }
 
             .dots {
@@ -1040,19 +950,6 @@
             <img id="backdropNext" alt="">
             <svg id="hardware" viewBox="0 0 1600 900" aria-hidden="true"></svg>
         </div>
-
-        <!-- About this song -->
-        <section class="panel panel-left about" id="aboutPanel">
-            <button class="panel-head" id="aboutToggle" aria-expanded="false" aria-controls="aboutText">
-                <span>About this song</span>
-                <svg class="chev" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
-            </button>
-            <div class="about-body">
-                <div class="about-kind" id="aboutKind"></div>
-                <div class="about-map" id="aboutMap" hidden></div>
-                <div class="about-text" id="aboutText" tabindex="0"></div>
-            </div>
-        </section>
 
         <!-- Song picker -->
         <section class="panel panel-right" id="pickerPanel">
@@ -1207,12 +1104,6 @@
             'Static', 'Undertow', 'Golden Hour', 'Open Road', 'Last Call'
         ];
 
-        const DEMO_LYRICS = [
-            `Streetlights hum in a minor key\nEvery window a different song\nI keep the radio low for you\nIn case you call before too long\n\nHold on, hold on\nThe night is only half begun\nHold on, hold on\nWe'll find the morning, one by one\n\nCopper wire and a borrowed tune\nRunning circles round the room\nIf the record skips, let it play\nSome things sound better that way`,
-            `Rain on the tin roof, counting time\nYou said the river knows the way\nI wrote your name on the window glass\nAnd watched it slowly fade away\n\nSo let it pour, let it pour\nI've been here before\nSo let it pour, let it pour\nI don't mind anymore\n\nThe kettle sings and the power's out\nWe dance to what the thunder plays\nTwo versions of the same old night\nI'd live it either way`,
-            `Turn it up till the needle bends\nThis is the part where the story ends\nOr starts again, I can't decide\nTwo roads and I want both sides\n\nA or B, B or A\nTell me which one makes you stay\nA or B, B or A\nPlay it back another way\n\nDust on the sleeve and a crack in the sound\nSpin it slow, let it go around\nWhatever you choose I'll understand\nThe song was always in your hands`
-        ];
-
         function demoCollection(id, name, offset, skin) {
             const songs = [];
             for (let i = 0; i < 10; i++) {
@@ -1221,7 +1112,6 @@
                     id: `${id}-${String(i + 1).padStart(2, '0')}`,
                     title: DEMO_TITLES[(offset + i) % DEMO_TITLES.length],
                     artist: 'KŮA · demo',
-                    about: { kind: 'lyrics', text: DEMO_LYRICS[seed % DEMO_LYRICS.length] },
                     v1: `demo:${seed}:1`,
                     v2: `demo:${seed}:2`
                 });
@@ -1297,23 +1187,45 @@
             if (skin !== currentSkin && skin !== pendingSkin && !brokenSkins.has(skin)) applySkin(skin);
         }
 
+        // Room images go through Netlify's image service, which sends WebP or AVIF where the browser
+        // takes it (about half the size of the JPEG, same sharpness). The width stays full because
+        // the A/B views zoom in, most of all on phones. Listeners on Data Saver or 2G get half width.
+        // Where the service isn't there (a plain local server), the original file is used instead.
+        const LEAN = !!navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || ''));
+        function roomSrc(path) {
+            if (!path || !path.startsWith('/') || path.startsWith('//')) return path;
+            return `/.netlify/images?url=${encodeURIComponent(path)}&w=${LEAN ? 1600 : 3200}`;
+        }
+
+        // Decode a room image (optimised, else original); resolves to the URL that worked, or null.
+        async function loadRoom(path) {
+            for (const src of new Set([roomSrc(path), path])) {
+                const img = new Image();
+                img.src = src;
+                try {
+                    await img.decode();
+                    return src;
+                } catch (e) {
+                    // Try the next candidate.
+                }
+            }
+            return null;
+        }
+
         const prefetched = new Set();
         function prefetchSkin(c) {
             const skin = skinFor(c);
             if (!skin || prefetched.has(skin.image)) return;
             prefetched.add(skin.image);
-            new Image().src = skin.image;
+            new Image().src = roomSrc(skin.image);
         }
 
         // behindWelcome: swap instantly if the welcome card still hides the room, else crossfade.
         async function applySkin(skin, { behindWelcome = false } = {}) {
             const token = ++skinToken;
             pendingSkin = skin;
-            const incoming = new Image();
-            incoming.src = skin.image;
-            try {
-                await incoming.decode();
-            } catch (e) {
+            const src = await loadRoom(skin.image);
+            if (!src) {
                 // Image missing or broken: stay in the room we're in, and don't keep retrying.
                 brokenSkins.add(skin);
                 if (token === skinToken) {
@@ -1340,13 +1252,13 @@
             const back = $('backdrop'), next = $('backdropNext');
             const settle = () => {
                 if (token !== skinToken) return;
-                back.src = skin.image;
+                back.src = src;
                 next.style.transition = 'none';
                 next.style.opacity = '0';
             };
             const hidden = behindWelcome && $('welcome').classList.contains('open');
             if (hidden || matchMedia('(prefers-reduced-motion: reduce)').matches || !back.src) return settle();
-            next.src = skin.image;
+            next.src = src;
             next.style.transition = '';
             next.getBoundingClientRect(); // start the fade from fully transparent
             next.style.opacity = '1';
@@ -1607,7 +1519,11 @@
         async function buildBackdrop() {
             const img = $('backdrop');
             if (CONFIG.sceneImage) {
-                img.src = CONFIG.sceneImage;
+                img.onerror = () => {
+                    img.onerror = null;
+                    img.src = CONFIG.sceneImage;
+                };
+                img.src = roomSrc(CONFIG.sceneImage);
                 return;
             }
             const svgUrl = URL.createObjectURL(new Blob([placeholderSVG()], { type: 'image/svg+xml' }));
@@ -2643,8 +2559,6 @@
             const num = String(songIdx + 1).padStart(2, '0');
             const vote = store.votes[song.id];
 
-            renderAbout(vote);
-
             $('pickerName').textContent = collection.name;
             $('pickerCover').setAttribute('style', cover);
             $('pickerCover').textContent = song.cover ? '' : num;
@@ -2730,25 +2644,6 @@
             on('previoustrack', () => {
                 if (song && songIdx > 0) selectSong(songIdx - 1, { autoplay: true, keepView: view === 'wide' });
             });
-        }
-
-        const ABOUT_LABELS = { lyrics: 'Lyrics', story: 'Story', versions: 'How the versions differ', notes: 'Notes' };
-
-        function renderAbout(vote) {
-            const about = song.about || { kind: 'lyrics', text: '' };
-            const sealed = about.kind === 'versions' && !vote;
-            $('aboutKind').textContent = ABOUT_LABELS[about.kind] || 'Notes';
-            // Version notes refer to the uploaded A and B files; say how those mapped onto this listener's decks.
-            const map = about.kind === 'versions' && vote && about.text;
-            $('aboutMap').hidden = !map;
-            if (map) {
-                $('aboutMap').textContent = flipFor(song.id)
-                    ? 'You heard these swapped: version A was on your B deck, version B on your A deck.'
-                    : 'You heard version A on your A deck and version B on your B deck.';
-            }
-            const text = !about.text ? 'Nothing here yet.' : sealed ? 'How the two versions differ is revealed after you vote.' : about.text;
-            $('aboutText').textContent = text;
-            $('aboutText').classList.toggle('muted', !about.text || sealed);
         }
 
         function renderTimes() {
@@ -3050,22 +2945,12 @@
             };
             $('collections').addEventListener('pointerover', warm);
             $('collections').addEventListener('focusin', warm);
-            // Each room is ~0.5–0.8 MB, so skip the warm-up for listeners on Data Saver or a 2G connection.
-            const lean = navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || ''));
-            if (!lean) (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => COLLECTIONS.forEach(prefetchSkin), { timeout: 8000 });
+            // Skip warming every room for listeners on Data Saver or a 2G connection.
+            if (!LEAN) (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => COLLECTIONS.forEach(prefetchSkin), { timeout: 8000 });
 
-            $('aboutToggle').addEventListener('click', () => {
-                const open = $('aboutPanel').classList.toggle('expanded');
-                $('aboutToggle').setAttribute('aria-expanded', String(open));
-                if (open) closeMenus();
-            });
             $('pickerToggle').addEventListener('click', () => {
                 const open = $('pickerPanel').classList.toggle('open');
                 $('pickerToggle').setAttribute('aria-expanded', String(open));
-                if (open) {
-                    $('aboutPanel').classList.remove('expanded');
-                    $('aboutToggle').setAttribute('aria-expanded', 'false');
-                }
             });
             $('pickerList').addEventListener('click', (e) => {
                 if (e.target.closest('[data-share]')) return share('collection');
@@ -3108,8 +2993,6 @@
                     if (!$('voteThanks').hidden) continueAfterVote();
                     else if ($('vote').classList.contains('open')) keepListening();
                     closeMenus();
-                    $('aboutPanel').classList.remove('expanded');
-                    $('aboutToggle').setAttribute('aria-expanded', 'false');
                     return;
                 }
                 if ($('welcome').classList.contains('open') || $('vote').classList.contains('open') || e.metaKey || e.ctrlKey) return;

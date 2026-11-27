@@ -4,7 +4,7 @@ Listeners hear two versions of each song on a two-deck hi-fi and vote for the on
 
 - **A / B** move the camera to that deck and play its version. Each version resumes where the listener left it.
 - **SELECT** pulls back to the wide shot and opens the vote (A or B, plus an optional note). It unlocks after 15 seconds of each version.
-- **About this song** (top left, a paper liner-notes card) shows the song's lyrics, story, notes, or how the two versions differ, and expands with the chevron. A "how the versions differ" note stays hidden until the listener has voted, then shows with a line saying which deck each of your files was on. **Song picker** (top right) lists the collection's songs.
+- **Song picker** (top right) lists the collection's songs. Listeners don't see the songs' About texts (lyrics, story, notes); those only feed the cover art.
 - **Slider:** three positions – A, the room (middle) and B. A and B play that version and move the camera to its deck; the middle pulls back to the wide room view while the music keeps playing, so the wall drum is in reach on phones. ←/→ step between positions.
 - **Continuous listening:** if a version plays to the end, the other version follows, then the next song, until the listener pauses, votes or picks something; the collection's last song stops (with the thank-you card if everything is voted).
 - **Background listening:** music keeps playing with the phone locked or the browser in the background, including continuous play into the next song; the lock screen / Control Centre shows the song, cover and play/pause/next/previous. On iPhone the music plays directly from the audio element (iOS suspends Web Audio when locked), so the VU needles are simulated and the vote-card volume dip isn't available there.
@@ -26,7 +26,7 @@ Listeners hear two versions of each song on a two-deck hi-fi and vote for the on
    ```
 
    Audio can be mp3, m4a, aac, wav, flac, ogg or aiff, at any size. Underscores inside a track name read as spaces.
-2. Open `/studio`, sign in, and drop the folder or individual files. The preview lists every song it found, flags misnamed files, and lets you paste or edit each song's About text and choose its type (Lyrics, Story, How the versions differ, Notes). Write version notes in terms of your A and B files; listeners are told how those mapped onto their decks.
+2. Open `/studio`, sign in, and drop the folder or individual files. The preview lists every song it found, flags misnamed files, and lets you paste or edit each song's About text and choose its type (Lyrics, Story, How the versions differ, Notes). About texts aren't shown to listeners; they shape each song's cover.
 3. Click **Upload**. The first time a collection appears, the Studio asks for its display name and **art theme**; every cover in that collection is generated from the theme plus each song's title and About text (version notes are left out).
 4. A song goes live as soon as both A and B are uploaded, and gets a cover at that point. Upload B later and it goes live then.
 
@@ -41,6 +41,7 @@ A collection can be heard in one of six rooms: the original **KŮA Room** or one
 - **Choosing:** Studio → the collection → **Room**, then **Save**. Listeners see it next time they open or switch to that collection (with a short crossfade, or instantly with reduced motion). Collections without a room use the KŮA Room.
 - **The list** lives in `public/skins.json`: each room's image, accent colours, drum ripple/glow colours and optional calibration nudges. The listening room, the Studio and the Studio API all read it.
 - **Renders:** `docs/skin-prompts.md` has the prompt for each region. `python scripts/draft_skins.py` drafts all five with OpenAI image editing from today's render (needs Pillow and `OPENAI_API_KEY` in `.env`); final renders replace the drafts under the same filenames in `public/assets/skins/`.
+- **Image size:** keep the full renders (3200 px JPEG) in the repo. The listening room asks Netlify's image service for them, which sends WebP or AVIF at about half the size and the same sharpness (full width, because the A/B views zoom in, most of all on phones); listeners on Data Saver or 2G get a half-width version, and the Studio shows small thumbnails. On a plain local server the original files are used.
 - **Previewing and calibrating:** `/?skin=<id>` shows any room; `/?calibrate&skin=<id>` lets you drag the overlay handles onto that render and prints the positions to paste into the room's `"overlays"` in `skins.json`. If a room's image fails to load, listeners simply stay in the room they're in.
 
 ## Hosting (Netlify)
