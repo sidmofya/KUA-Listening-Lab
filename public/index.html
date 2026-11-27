@@ -244,6 +244,13 @@
             text-overflow: ellipsis;
         }
 
+        .song-sub .ver {
+            font-family: var(--mono);
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            color: var(--copper-lt);
+        }
+
         .song-sub {
             font-size: 12px;
             color: var(--muted);
@@ -541,7 +548,7 @@
             right: 8px;
             bottom: 8px;
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
             z-index: 6;
         }
@@ -990,21 +997,16 @@
         </div>
 
         <div class="bars">
-            <button class="bar" id="barA" aria-pressed="false" aria-label="Play version A">
-                <span class="prog"><i id="progA"></i></span>
-                <svg class="state" id="stateA" viewBox="0 0 12 12"></svg>
-                <span>Play A</span>
-                <span class="time" id="timeA">0:00</span>
+            <!-- Plays or pauses the version the slider is on; the slider is the only way to switch. -->
+            <button class="bar" id="barPlay" aria-label="Play version A">
+                <span class="prog"><i id="progPlay"></i></span>
+                <svg class="state" id="statePlay" viewBox="0 0 12 12"></svg>
+                <span id="playLabel">Play</span>
+                <span class="time" id="timePlay">0:00</span>
             </button>
             <button class="bar" id="barSelect" aria-label="Vote for A or B">
                 <span>Select</span>
                 <span class="sub" id="selectSub"></span>
-            </button>
-            <button class="bar" id="barB" aria-pressed="false" aria-label="Play version B">
-                <span class="prog"><i id="progB"></i></span>
-                <svg class="state" id="stateB" viewBox="0 0 12 12"></svg>
-                <span>Play B</span>
-                <span class="time" id="timeB">0:00</span>
             </button>
         </div>
 
@@ -2195,6 +2197,18 @@
             updateUI();
         }
 
+        // The version the play button acts on: the slider's end, or in the room view whatever was last on.
+        function playKey() {
+            return view === 'A' || view === 'B' ? view : live || 'A';
+        }
+
+        // Play/pause. The very first play goes to deck A, so the slider shows what's playing;
+        // after that it never moves the camera.
+        function togglePlay() {
+            if (!song || loading) return;
+            pressDeck(playKey(), { keepView: !!live || view !== 'wide' });
+        }
+
         // Slider middle: pull back to the wide room view and keep the music playing.
         function setRoomView() {
             if (view === 'wide') return updateUI();
@@ -2564,7 +2578,9 @@
             $('pickerCover').textContent = song.cover ? '' : num;
             $('pickerTitle').textContent = song.title;
             const soFar = collection.total > collection.songs.length ? ' · more coming' : '';
-            $('pickerSub').textContent = `Song ${songIdx + 1} of ${collection.songs.length}${soFar}${vote ? ` · voted ${vote.choice}` : ''}`;
+            // Which version is on, first so it survives truncation on narrow screens.
+            const on = live ? `<span class="ver">${isPlaying(decks[live]) ? 'Playing' : 'Paused on'} ${live}</span> · ` : '';
+            $('pickerSub').innerHTML = `${on}Song ${songIdx + 1} of ${collection.songs.length}${soFar}${vote ? ` · voted ${esc(vote.choice)}` : ''}`;
             $('pickerList').innerHTML = `<button class="share-link" data-share type="button">${$('shareSong').querySelector('svg').outerHTML}Share ${esc(collection.name)}</button>` +
                 collection.songs.map((s, i) => {
                     const v = store.votes[s.id];
@@ -2574,13 +2590,11 @@
             $('prevSong').disabled = songIdx === 0;
             $('nextSong').disabled = songIdx === collection.songs.length - 1;
 
-            for (const k of ['A', 'B']) {
-                const active = live === k;
-                const playing = isPlaying(decks[k]);
-                $('bar' + k).classList.toggle('active', active);
-                $('bar' + k).setAttribute('aria-pressed', String(active && playing));
-                $('state' + k).innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
-            }
+            const key = playKey(), playing = isPlaying(decks[key]);
+            $('barPlay').classList.toggle('active', playing);
+            $('barPlay').setAttribute('aria-label', `${playing ? 'Pause' : 'Play'} version ${key}`);
+            $('playLabel').textContent = playing ? 'Pause' : 'Play';
+            $('statePlay').innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
 
             const xf = $('xfader');
             xf.classList.toggle('live', !!live);
@@ -2647,13 +2661,11 @@
         }
 
         function renderTimes() {
-            for (const k of ['A', 'B']) {
-                const el = decks[k].el;
-                const dur = el?.duration;
-                const pct = el && isFinite(dur) && dur > 0 ? (el.currentTime / dur) * 100 : 0;
-                $('prog' + k).style.width = `${pct}%`;
-                $('time' + k).textContent = el ? fmt(el.currentTime) : '0:00';
-            }
+            const el = decks[playKey()].el;
+            const dur = el?.duration;
+            const pct = el && isFinite(dur) && dur > 0 ? (el.currentTime / dur) * 100 : 0;
+            $('progPlay').style.width = `${pct}%`;
+            $('timePlay').textContent = el ? fmt(el.currentTime) : '0:00';
         }
 
         let musicTime = 0, drumHintUntil = 0;
@@ -2671,7 +2683,7 @@
             let hint = '';
             const anyPlaying = isPlaying(decks.A) || isPlaying(decks.B);
             if (loading) hint = 'Pressing records…';
-            else if (!anyPlaying && !$('vote').classList.contains('open')) hint = vote ? `You picked ${vote.choice} · press Play to listen again` : live ? 'Paused · press Play A or Play B' : 'Press Play A or Play B to start listening';
+            else if (!anyPlaying && !$('vote').classList.contains('open')) hint = vote ? `You picked ${vote.choice} · press Play to listen again` : live ? 'Paused · press Play' : 'Press Play, then slide between A and B';
             else if (anyPlaying && ready && !vote) hint = 'Heard enough? Tap SELECT to vote';
             else if (anyPlaying && (drumHintUntil > performance.now() || (!store.drumHinted && musicTime > 20))) {
                 if (!drumHintUntil) {
@@ -2930,8 +2942,7 @@
                 flushOutbox();
             });
 
-            $('barA').addEventListener('click', () => pressDeck('A'));
-            $('barB').addEventListener('click', () => pressDeck('B'));
+            $('barPlay').addEventListener('click', togglePlay);
             $('barSelect').addEventListener('click', openVote);
 
             $('collections').addEventListener('click', (e) => {
@@ -2997,12 +3008,10 @@
                 }
                 if ($('welcome').classList.contains('open') || $('vote').classList.contains('open') || e.metaKey || e.ctrlKey) return;
                 const key = e.key.toLowerCase();
-                if (key === 'a') pressDeck('A');
-                else if (key === 'b') pressDeck('B');
-                else if (key === 's') openVote();
-                else if (key === ' ' && live && !e.target.closest('button')) {
+                if (key === 's') openVote();
+                else if (key === ' ' && !e.target.closest('button, [role=slider]')) {
                     e.preventDefault();
-                    pressDeck(live);
+                    togglePlay();
                 }
             });
 
