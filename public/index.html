@@ -201,6 +201,30 @@
             right: 24px;
         }
 
+        /* The song picker with the vote button hanging just beneath it (touching). The button
+           follows the panel when its song list opens, and stays clear of the bottom corner. */
+        .right-col {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            width: 288px;
+            z-index: 6;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.35s ease;
+        }
+
+        .right-col .panel {
+            position: relative;
+            top: auto;
+            right: auto;
+            width: auto;
+        }
+
+        .bar.vote {
+            border-top: 0;
+        }
+
         .panel-head {
             display: flex;
             justify-content: space-between;
@@ -958,6 +982,21 @@
                 z-index: 8;
             }
 
+            .right-col {
+                top: 12px;
+                right: 12px;
+                width: calc(50% - 18px);
+            }
+
+            .right-col.open {
+                width: calc(100% - 24px);
+                z-index: 8;
+            }
+
+            .right-col .panel-right.open {
+                width: auto;
+            }
+
             .panel-head {
                 font-size: 12px;
                 padding: 10px 12px 6px;
@@ -1078,7 +1117,8 @@
             <svg id="hardware" viewBox="0 0 1600 900" aria-hidden="true"></svg>
         </div>
 
-        <!-- Song picker -->
+        <!-- Song picker, with the vote button hanging beneath it -->
+        <div class="right-col" id="rightCol">
         <section class="panel panel-right" id="pickerPanel">
             <button class="panel-head" id="pickerToggle" aria-expanded="false" aria-controls="pickerList">
                 <span id="pickerName">Collection</span>
@@ -1105,6 +1145,11 @@
                 <div class="dots" id="dots" aria-hidden="true"></div>
             </div>
         </section>
+        <button class="bar vote" id="barSelect" aria-label="Vote for A or B">
+            <span>Vote A or B</span>
+            <span class="sub" id="selectSub"></span>
+        </button>
+        </div>
 
         <div class="hint" id="hint" aria-live="polite"></div>
 
@@ -1125,10 +1170,6 @@
                 <svg class="state" id="statePlay" viewBox="0 0 12 12"></svg>
                 <span id="playLabel">Play</span>
                 <span class="time" id="timePlay">0:00</span>
-            </button>
-            <button class="bar" id="barSelect" aria-label="Vote for A or B">
-                <span>Vote A or B</span>
-                <span class="sub" id="selectSub"></span>
             </button>
         </div>
 
@@ -1983,7 +2024,7 @@
 
         function initDrum() {
             const stage = $('stage');
-            const blocked = (e) => e.target.closest('.panel, .bars, .xfader, .overlay, .toast, .cal') || $('welcome').classList.contains('open')
+            const blocked = (e) => e.target.closest('.panel, .right-col, .bars, .xfader, .overlay, .toast, .cal') || $('welcome').classList.contains('open')
                 || $('vote').classList.contains('open') || $('done').classList.contains('open');
             stage.addEventListener('pointerdown', (e) => {
                 if (blocked(e) || (e.pointerType === 'mouse' && e.button !== 0)) return;
@@ -2963,6 +3004,7 @@
 
         function closeMenus() {
             $('pickerPanel').classList.remove('open');
+            $('rightCol').classList.remove('open');
             $('pickerToggle').setAttribute('aria-expanded', 'false');
         }
 
@@ -3288,6 +3330,7 @@
 
             $('pickerToggle').addEventListener('click', () => {
                 const open = $('pickerPanel').classList.toggle('open');
+                $('rightCol').classList.toggle('open', open);
                 $('pickerToggle').setAttribute('aria-expanded', String(open));
             });
             $('pickerList').addEventListener('click', (e) => {
