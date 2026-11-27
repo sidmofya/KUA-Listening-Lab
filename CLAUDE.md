@@ -23,7 +23,8 @@ named after a region of KwaZuri.
   `public/studio.html` (Studio). All CSS and JS are inline in those files.
 - Netlify Functions (`netlify/functions/`) and Netlify Blobs for audio, covers, catalog and votes.
 - AI covers: OpenAI `gpt-image-2` (or Gemini) via `netlify/lib/cover.mjs`.
-- Hosting: Netlify. Merging to `main` deploys to the live site.
+- Hosting: Netlify, linked to this GitHub repo. Merging to `main` deploys to the live site; pull requests get
+  deploy previews. (Before 2026-11-27 the site wasn't linked and was deployed by hand.)
 
 ## Key Files
 

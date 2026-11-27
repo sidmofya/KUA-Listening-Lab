@@ -45,6 +45,7 @@ A collection can be heard in one of six rooms: the original **KŮA Room** or one
 
 ## Hosting (Netlify)
 
+- **Deploys:** the Netlify site is linked to this GitHub repo. Merging to `main` publishes to listen.sidmofya.com within a minute or two; each pull request gets its own deploy-preview link (shown on the PR) to try before merging. To undo a release, publish an earlier deploy from Netlify → Deploys.
 - `public/` is the site: `index.html` (listening room) and `studio.html` (Studio).
 - `netlify/functions/` is the API; audio, covers and the catalog live in Netlify Blobs.
 - Audio is uploaded and served in 4 MB parts with HTTP range support, to stay under Netlify's function size limits while keeping seeking instant.
