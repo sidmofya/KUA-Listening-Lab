@@ -110,7 +110,12 @@ export function publicCatalog(catalog) {
                         cover: s.cover ? `/api/cover/${s.cover.key}` : null,
                         v1: `/api/audio/${s.v1.key}`,
                         v2: `/api/audio/${s.v2.key}`,
-                        revs: { v1: s.v1.rev, v2: s.v2.rev }
+                        revs: { v1: s.v1.rev, v2: s.v2.rev },
+                        // Timed lyrics per version, or null; the URL changes whenever they're saved.
+                        captions: s.captions ? {
+                            v1: s.captions.v1 ? `/api/captions/${encodeURIComponent(s.id)}/v1?r=${s.captions.v1.rev}` : null,
+                            v2: s.captions.v2 ? `/api/captions/${encodeURIComponent(s.id)}/v2?r=${s.captions.v2.rev}` : null
+                        } : null
                     }))
             }))
             .filter((c) => c.songs.length)

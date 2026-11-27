@@ -422,6 +422,58 @@
             opacity: 0;
         }
 
+        /* Lyrics: the line being sung and, fainter, the next one – only while music plays.
+           Sits just above the buttons, under the record players in every view. */
+        .captions {
+            position: absolute;
+            left: 50%;
+            bottom: 62px;
+            transform: translateX(-50%);
+            width: min(680px, 92%);
+            padding: 10px 18px 8px;
+            text-align: center;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.35s ease;
+            background: radial-gradient(ellipse at center, rgba(10, 8, 6, 0.45), rgba(10, 8, 6, 0) 70%);
+        }
+
+        .captions.on {
+            opacity: 1;
+        }
+
+        .captions p {
+            margin: 0;
+            transition: opacity 0.16s ease;
+            text-shadow: 0 1px 10px rgba(0, 0, 0, 0.75);
+            overflow-wrap: anywhere;
+        }
+
+        .captions.swap p {
+            opacity: 0;
+        }
+
+        .cap-now {
+            font-size: 18px;
+            font-weight: 500;
+            line-height: 1.35;
+            min-height: 1.35em;
+        }
+
+        .cap-next {
+            font-size: 13px;
+            line-height: 1.4;
+            min-height: 1.4em;
+            margin-top: 2px;
+            color: rgba(255, 255, 255, 0.55);
+        }
+
+        /* While lyrics show, hints move up above them */
+        .stage.has-captions .hint {
+            bottom: 132px;
+        }
+
         /* A/B slider: a fader slot and cap, so it reads as something to drag. It rides above
            whatever is in shot (placeSlider), gliding with the camera. */
         .xfader {
@@ -966,6 +1018,23 @@
                 bottom: 66px;
                 font-size: 12px;
             }
+
+            .captions {
+                bottom: 58px;
+                padding: 8px 10px 6px;
+            }
+
+            .cap-now {
+                font-size: 15px;
+            }
+
+            .cap-next {
+                font-size: 12px;
+            }
+
+            .stage.has-captions .hint {
+                bottom: 120px;
+            }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -974,6 +1043,10 @@
             }
 
             #drumArt {
+                transition: none;
+            }
+
+            .captions, .captions p {
                 transition: none;
             }
 
@@ -1034,6 +1107,8 @@
         </section>
 
         <div class="hint" id="hint" aria-live="polite"></div>
+
+        <div class="captions" id="captions" aria-hidden="true"><p class="cap-now" id="capNow"></p><p class="cap-next" id="capNext"></p></div>
 
         <div class="xfader" id="xfader">
             <div class="xfader-row" id="xfaderRow" role="slider" tabindex="0" aria-label="Switch between A and B" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0.5" aria-valuetext="Nothing playing">
@@ -1961,7 +2036,7 @@
             const half = xf.offsetWidth / 2, h = xf.offsetHeight;
             // Always fully on screen, clear of the top edge and of the hint and buttons at the bottom.
             const x = clamp(cam.tx + a.x * cam.S, half + 8, W - half - 8);
-            const y = clamp(cam.ty + a.y * cam.S, h + 12, H - 100);
+            const y = clamp(cam.ty + a.y * cam.S, h + 12, H - (songHasCaptions() ? 160 : 100));
             xf.style.transition = animate ? '' : 'none';
             xf.style.left = `${x}px`;
             xf.style.top = `${y}px`;
@@ -2209,7 +2284,7 @@
         function disposeDeck(d) {
             if (d.el) d.el.pause();
             // The player (and its Web Audio wiring) is kept for the next song.
-            Object.assign(d, { el: null, meta: null, version: null, posKey: null, vol: 1, volTarget: 1, pauseWhenSilent: false });
+            Object.assign(d, { el: null, meta: null, version: null, posKey: null, vol: 1, volTarget: 1, pauseWhenSilent: false, captions: null });
         }
 
         function attachDeck(d, url, version, songId, rev) {
@@ -2475,6 +2550,7 @@
                 if (token !== loadToken) return;
                 attachDeck(decks.A, urls[0], versions.A, song.id, song.revs?.[versions.A]);
                 attachDeck(decks.B, urls[1], versions.B, song.id, song.revs?.[versions.B]);
+                for (const d of [decks.A, decks.B]) loadDeckCaptions(d, song.captions?.[d.version], token);
             } catch (e) {
                 if (token === loadToken) toast('Could not load this song.');
             }
@@ -2978,7 +3054,72 @@
                 saveTimer = 0;
                 savePositions();
             }
+            updateCaptions();
             requestAnimationFrame(frame);
+        }
+
+        // ---------------------------------------------------------------
+        // Lyrics (captions): timed lines per version, made in the Studio. The line being
+        // sung shows above the buttons with the next one fainter beneath; they hide when
+        // paused, during instrumental gaps and for songs without captions.
+        // ---------------------------------------------------------------
+
+        const captionCache = new Map();
+        let capKey = '', capTimer = 0;
+
+        function loadDeckCaptions(d, url, token) {
+            d.captions = null;
+            if (!url) return;
+            if (!captionCache.has(url)) {
+                captionCache.set(url, fetch(url)
+                    .then((r) => (r.ok ? r.json() : { lines: [] }))
+                    .then((j) => (Array.isArray(j.lines) ? j.lines : []))
+                    .catch(() => {
+                        captionCache.delete(url); // try again next time this song loads
+                        return [];
+                    }));
+            }
+            captionCache.get(url).then((lines) => {
+                if (token !== loadToken) return;
+                d.captions = lines;
+                applyCamera(false); // the slider keeps clear of the lyrics band
+            });
+        }
+
+        const songHasCaptions = () => !!(decks.A.captions?.length || decks.B.captions?.length);
+
+        function updateCaptions() {
+            const d = live ? decks[live] : null, lines = d?.captions;
+            let now = -1, next = -1;
+            if (lines?.length && isPlaying(d) && !$('vote').classList.contains('open')) {
+                const t = d.el.currentTime;
+                let i = lines.length - 1;
+                while (i >= 0 && lines[i].t > t) i--;
+                if (i >= 0) {
+                    // A line stays up until it ends (plus a beat), the next starts, or 8 s pass.
+                    const end = Math.min(lines[i].e != null ? lines[i].e + 1 : lines[i].t + 8, lines[i + 1]?.t ?? Infinity);
+                    if (t < end) now = i;
+                }
+                if (now >= 0) next = now + 1 < lines.length ? now + 1 : -1;
+                else if (lines[i + 1] && lines[i + 1].t - t < 2) next = i + 1; // the first line of a verse, coming up
+            }
+            const key = now >= 0 || next >= 0 ? `${live}|${now}|${next}` : '';
+            if (key === capKey) return;
+            const wasOn = !!capKey;
+            capKey = key;
+            const box = $('captions');
+            box.classList.toggle('on', !!key);
+            $('stage').classList.toggle('has-captions', !!key);
+            if (!key) return;
+            const set = () => {
+                $('capNow').textContent = now >= 0 ? lines[now].text : '';
+                $('capNext').textContent = next >= 0 ? lines[next].text : '';
+                box.classList.remove('swap');
+            };
+            clearTimeout(capTimer);
+            if (!wasOn || matchMedia('(prefers-reduced-motion: reduce)').matches) return set();
+            box.classList.add('swap');
+            capTimer = setTimeout(set, 160);
         }
 
         // ---------------------------------------------------------------

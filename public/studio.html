@@ -541,6 +541,87 @@
             grid-column: 3 / -1;
         }
 
+        /* ---------- Captions (timed lyrics) editor ---------- */
+
+        .cap-body {
+            margin-top: 10px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .cap-tabs {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .cap-tabs .btn[aria-pressed="true"] {
+            border-color: var(--copper-lt);
+            color: var(--copper-lt);
+        }
+
+        .cap-body audio {
+            width: 100%;
+            height: 36px;
+        }
+
+        .cap-lines {
+            display: grid;
+            gap: 4px;
+            max-height: 360px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .cap-line {
+            display: grid;
+            grid-template-columns: 78px 1fr auto auto auto;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .cap-line input {
+            padding: 5px 7px;
+            font-size: 13px;
+        }
+
+        .cap-line input[data-cap-t] {
+            font-family: var(--mono);
+            font-size: 12px;
+        }
+
+        .cap-line input.invalid {
+            border-color: var(--bad);
+        }
+
+        .cap-line.est input[data-cap-t] {
+            border-color: var(--warn);
+            color: var(--warn);
+        }
+
+        .cap-line.now input[data-cap-text] {
+            border-color: var(--copper-lt);
+        }
+
+        .cap-tap {
+            display: grid;
+            gap: 8px;
+            padding: 12px;
+            border: 1px solid var(--line-soft);
+        }
+
+        .cap-tap .next {
+            font-size: 18px;
+            min-height: 1.4em;
+        }
+
+        .cap-tap .after {
+            font-size: 13px;
+            color: var(--muted);
+            min-height: 1.3em;
+        }
+
         /* ---------- Modal & toast ---------- */
 
         .modal {
@@ -1323,6 +1404,7 @@
                                 <textarea data-lyrics placeholder="Lyrics, the story behind it, how the two versions differ…">${esc(s.lyrics)}</textarea>
                                 <div class="row" style="margin-top:6px;justify-content:flex-end"><button class="btn small" data-act="save-lyrics">Save</button></div>
                             </details>
+                            ${s.v1 && s.v2 ? capEditor(c, s) : ''}
                         </li>`).join('')}
                     </ol>
                     ${songs.length ? '' : '<p class="mono" style="margin-top:12px">No songs yet.</p>'}
@@ -1358,6 +1440,606 @@
         async function moveSong(c, order) {
             await api('/api/admin/order', { method: 'POST', body: { collectionId: c.id, order } });
         }
+
+        // ---------------------------------------------------------------
+        // Captions: timed lyrics per version, played along in the listening room.
+        // Two ways to make them – Generate (OpenAI transcribes the audio in ~30 s pieces,
+        // cut at quiet moments, because server functions stop after ~10 s) and Tap to time
+        // (paste lyrics, tap as each line starts) – then edit any line's words or timing.
+        // Editor state lives here, so Studio refreshes don't lose unsaved work.
+        // ---------------------------------------------------------------
+
+        const capState = new Map(); // songId → editor state
+        const VER_LABEL = { v1: 'A', v2: 'B' };
+
+        function capFor(songId) {
+            if (!capState.has(songId)) {
+                capState.set(songId, { open: false, ver: 'v1', lines: { v1: null, v2: null }, dirty: { v1: false, v2: false }, source: { v1: 'edited', v2: 'edited' }, status: '', busy: false, tap: null });
+            }
+            return capState.get(songId);
+        }
+
+        const fmtT = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`;
+        function parseT(v) {
+            const m = String(v).trim().match(/^(?:(\d+):)?(\d+(?:\.\d+)?)$/);
+            return m ? (Number(m[1] || 0) * 60 + Number(m[2])) : NaN;
+        }
+
+        const capMark = (s, st, v) => (st.dirty[v] ? '•' : s.captions?.[v] ? '✓' : '–');
+
+        function capEditor(c, s) {
+            const st = capFor(s.id);
+            return `<details class="cap" data-cap ${st.open ? 'open' : ''}>
+                <summary>Lyrics captions · A ${capMark(s, st, 'v1')} · B ${capMark(s, st, 'v2')}</summary>
+                <div class="cap-body" data-cap-body>${st.open ? capBody(c, s, st) : ''}</div>
+            </details>`;
+        }
+
+        function capBody(c, s, st) {
+            const v = st.ver, lines = st.lines[v];
+            const stale = s.captions?.[v]?.audioKey && s.captions[v].audioKey !== s[v]?.key;
+            const tabs = ['v1', 'v2'].map((k) => `<button class="btn ghost small" data-cap="ver" data-v="${k}" aria-pressed="${k === v}">Version ${VER_LABEL[k]}${st.dirty[k] ? ' •' : ''}</button>`).join('');
+            const tools = `<div class="cap-tabs">${tabs}
+                    <span style="flex:1"></span>
+                    <button class="btn ghost small" data-cap="gen" ${st.busy ? 'disabled' : ''} title="Transcribe this version with AI">Generate ${VER_LABEL[v]}</button>
+                    <button class="btn ghost small" data-cap="gen-both" ${st.busy ? 'disabled' : ''} title="Transcribe both versions with AI">Generate both</button>
+                    <button class="btn ghost small" data-cap="tap" ${st.busy ? 'disabled' : ''} title="Paste lyrics and tap as each line starts">Tap to time</button>
+                </div>`;
+            const notes = [
+                lyricsOf(s) ? '<p class="note">Words come from this song\'s lyrics file (About text); Generate works out the timing. Without lyrics, the AI writes the words too.</p>' : '',
+                st.status ? `<p class="note">${esc(st.status)}</p>` : '',
+                lines?.some((l) => l.est) && !st.tap ? '<p class="note warn">Times in amber are estimates – play around them and fix with ⏱.</p>' : '',
+                stale ? `<p class="note warn">Version ${VER_LABEL[v]}'s audio was replaced after these captions were made; timings may be off. Generate again or retime.</p>` : '',
+                st.dirty[v] ? '<p class="note warn">Unsaved changes – press Save to publish them.</p>' : ''
+            ].join('');
+            let main;
+            if (st.tap) {
+                const t = st.tap;
+                main = t.lines
+                    ? `<div class="cap-tap">
+                        <p class="note">Tap (or press Space) as each line starts. ${t.i}/${t.lines.length} timed.</p>
+                        <div class="next">${esc(t.lines[t.i]?.text || 'All lines timed')}</div>
+                        <div class="after">${esc(t.lines[t.i + 1]?.text || '')}</div>
+                        <div class="row"><button class="btn small" data-cap="tap-hit" ${t.i >= t.lines.length ? 'disabled' : ''}>Tap</button>
+                        <button class="btn ghost small" data-cap="tap-undo" ${t.i ? '' : 'disabled'}>Undo</button>
+                        <button class="btn ghost small" data-cap="tap-done">Done</button></div>
+                    </div>`
+                    : `<div class="cap-tap">
+                        <p class="note">Paste the lyrics for version ${VER_LABEL[v]}, one line per caption. Then press Start: the song plays from the beginning.</p>
+                        <textarea data-cap-paste style="min-height:140px">${esc(t.text)}</textarea>
+                        <div class="row"><button class="btn small" data-cap="tap-start">Start</button><button class="btn ghost small" data-cap="tap-cancel">Cancel</button></div>
+                    </div>`;
+            } else if (lines === null && s.captions?.[v]) {
+                main = '<p class="note">Loading…</p>';
+            } else if (!lines?.length) {
+                main = `<p class="note">No captions for version ${VER_LABEL[v]} yet. Generate them, or tap them in time with your own lyrics.</p>`;
+            } else {
+                main = `<div class="cap-lines" data-cap-lines>${lines.map((l, i) => `<div class="cap-line ${l.est ? 'est' : ''}" data-i="${i}">
+                        <input type="text" data-cap-t value="${fmtT(l.t)}" aria-label="Start time">
+                        <input type="text" data-cap-text value="${esc(l.text)}" aria-label="Line ${i + 1}" maxlength="200">
+                        <button class="btn ghost small" data-cap="play" title="Play from this line" aria-label="Play from this line">▶</button>
+                        <button class="btn ghost small" data-cap="stamp" title="Set to the player's current time" aria-label="Set to current time">⏱</button>
+                        <button class="btn ghost small danger" data-cap="del" title="Delete line" aria-label="Delete line">×</button>
+                    </div>`).join('')}</div>
+                    <div class="row">
+                        <button class="btn ghost small" data-cap="add">+ Add line</button>
+                        <button class="btn ghost small" data-cap="shift" data-d="-0.5" title="Move every line 0.5 s earlier">All −0.5 s</button>
+                        <button class="btn ghost small" data-cap="shift" data-d="0.5" title="Move every line 0.5 s later">All +0.5 s</button>
+                    </div>`;
+            }
+            const footer = st.tap ? '' : `<div class="row" style="justify-content:flex-end">
+                    ${s.captions?.[v] ? `<button class="btn ghost small danger" data-cap="clear">Remove ${VER_LABEL[v]}'s captions</button>` : ''}
+                    <button class="btn small" data-cap="save" ${st.dirty[v] && !st.busy ? '' : 'disabled'}>Save</button>
+                </div>`;
+            return `${tools}<audio data-cap-audio controls preload="none" src="/api/audio/${encodeURI(s[v].key)}"></audio>${notes}${main}${footer}`;
+        }
+
+        function capContext(songId) {
+            const li = document.querySelector(`.song[data-s="${CSS.escape(songId)}"]`);
+            if (!li) return {};
+            const c = findCollection(li.closest('[data-c]').dataset.c);
+            return { li, c, s: c?.songs[songId], st: capFor(songId) };
+        }
+
+        // Re-render one song's editor, keeping its audio player (and playback) when the version is unchanged.
+        function renderCap(songId) {
+            const { li, c, s, st } = capContext(songId);
+            const body = li?.querySelector('[data-cap-body]');
+            if (!body || !s) return;
+            const oldAudio = body.querySelector('[data-cap-audio]');
+            const scroll = body.querySelector('[data-cap-lines]')?.scrollTop || 0;
+            body.innerHTML = capBody(c, s, st);
+            const fresh = body.querySelector('[data-cap-audio]');
+            if (oldAudio && fresh && oldAudio.getAttribute('src') === fresh.getAttribute('src')) fresh.replaceWith(oldAudio);
+            const list = body.querySelector('[data-cap-lines]');
+            if (list) list.scrollTop = scroll;
+            li.querySelector('[data-cap] > summary').textContent = `Lyrics captions · A ${capMark(s, st, 'v1')} · B ${capMark(s, st, 'v2')}`;
+        }
+
+        async function loadCaptions(s, v) {
+            const st = capFor(s.id);
+            if (st.lines[v] !== null || st.dirty[v]) return;
+            if (!s.captions?.[v]) {
+                st.lines[v] = [];
+                return;
+            }
+            const res = await fetch(`/api/captions/${encodeURIComponent(s.id)}/${v}?r=${s.captions[v].rev}`);
+            st.lines[v] = res.ok ? (await res.json()).lines : [];
+            st.source[v] = s.captions[v].source || 'edited';
+        }
+
+        async function openCap(songId) {
+            const { s, st } = capContext(songId);
+            if (!s) return;
+            renderCap(songId);
+            await Promise.all(['v1', 'v2'].map((v) => loadCaptions(s, v).catch(() => { st.lines[v] = []; })));
+            renderCap(songId);
+        }
+
+        // --- Generate: fetch the stored file, decode, downmix to mono, transcribe in pieces ---
+
+        async function fetchAudio(url) {
+            const parts = [];
+            let got = 0, size = Infinity;
+            while (got < size) {
+                const res = await fetch(url, { headers: { range: `bytes=${got}-` }, credentials: 'same-origin' });
+                if (res.status !== 206 && res.status !== 200) throw new Error('Could not load the audio');
+                const buf = new Uint8Array(await res.arrayBuffer());
+                if (res.status === 200) return buf.buffer;
+                size = Number((res.headers.get('content-range') || '').split('/')[1]) || got + buf.length;
+                if (!buf.length) break;
+                parts.push(buf);
+                got += buf.length;
+            }
+            const all = new Uint8Array(got);
+            let at = 0;
+            for (const p of parts) {
+                all.set(p, at);
+                at += p.length;
+            }
+            return all.buffer;
+        }
+
+        async function toMono(buf) {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            let decoded;
+            try {
+                decoded = await ctx.decodeAudioData(buf);
+            } catch (e) {
+                throw new Error("this browser can't decode that audio format; try Chrome, or upload an MP3/M4A version");
+            } finally {
+                ctx.close();
+            }
+            for (const rate of [16000, 22050]) {
+                try {
+                    const off = new OfflineAudioContext(1, Math.ceil(decoded.duration * rate), rate);
+                    const src = off.createBufferSource();
+                    src.buffer = decoded;
+                    src.connect(off.destination);
+                    src.start();
+                    return { pcm: (await off.startRendering()).getChannelData(0), rate };
+                } catch (e) {
+                    // Some browsers refuse 16 kHz offline rendering; try the next rate.
+                }
+            }
+            throw new Error('could not prepare the audio');
+        }
+
+        // ~30 s pieces, each cut at the quietest 100 ms between 25 s and 35 s; silent pieces are skipped.
+        function pieces(pcm, rate) {
+            const win = Math.round(rate / 10), rms = [];
+            for (let i = 0; i < pcm.length; i += win) {
+                let sum = 0;
+                const end = Math.min(pcm.length, i + win);
+                for (let j = i; j < end; j++) sum += pcm[j] * pcm[j];
+                rms.push(Math.sqrt(sum / (end - i)));
+            }
+            const out = [];
+            let start = 0;
+            while (start < rms.length) {
+                let cut = rms.length;
+                if (rms.length - start > 350) {
+                    cut = start + 250;
+                    for (let k = start + 250; k < start + 350; k++) if (rms[k] < rms[cut]) cut = k;
+                }
+                let loud = 0;
+                for (let k = start; k < cut; k++) loud = Math.max(loud, rms[k]);
+                if (loud > 0.004) out.push({ from: start * win, to: Math.min(pcm.length, cut * win) });
+                start = cut;
+            }
+            return out;
+        }
+
+        function wav(pcm, rate) {
+            const buf = new ArrayBuffer(44 + pcm.length * 2), v = new DataView(buf);
+            const str = (o, s) => [...s].forEach((ch, i) => v.setUint8(o + i, ch.charCodeAt(0)));
+            str(0, 'RIFF'); v.setUint32(4, 36 + pcm.length * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+            v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+            v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+            str(36, 'data'); v.setUint32(40, pcm.length * 2, true);
+            for (let i = 0; i < pcm.length; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, pcm[i])) * 0x7fff, true);
+            return buf;
+        }
+
+        // Break long segments at the word gap nearest the middle (after punctuation when possible).
+        function toLines(segments) {
+            const lines = [];
+            const split = (seg) => {
+                if (seg.text.length <= 64 || (seg.words?.length || 0) < 4) return lines.push({ t: seg.start, e: seg.end, text: seg.text });
+                const w = seg.words, mid = seg.text.length / 2;
+                let best = 1, bestScore = Infinity, chars = 0;
+                for (let i = 1; i < w.length; i++) {
+                    chars += w[i - 1].word.length + 1;
+                    const score = Math.abs(chars - mid) - (/[,.;:!?]$/.test(w[i - 1].word) ? 12 : 0);
+                    if (score < bestScore) {
+                        bestScore = score;
+                        best = i;
+                    }
+                }
+                const a = w.slice(0, best), b = w.slice(best);
+                split({ start: seg.start, end: a[a.length - 1].end, text: a.map((x) => x.word).join(' '), words: a });
+                split({ start: b[0].start, end: seg.end, text: b.map((x) => x.word).join(' '), words: b });
+            };
+            segments.forEach(split);
+            return lines;
+        }
+
+        // --- Lyrics file + AI timing: the words come from Sid's lyrics, the times from Whisper ---
+        // Each lyric line is matched, in order, to the words Whisper heard (tolerating mishearings),
+        // and takes the time of its first matched word. A chorus written once but sung again is
+        // recognised in the leftover audio and captioned with the lyric line. Lines that can't be
+        // placed get a time between their neighbours and are marked "est" for checking.
+
+        const lyricsOf = (s) => ((s.aboutKind || 'lyrics') === 'lyrics' ? (s.lyrics || '').trim() : '');
+
+        // Section labels such as [Chorus] or (x2) aren't sung, so they don't become captions.
+        const lyricLines = (text) => text.split('\n').map((l) => l.trim()).filter((l) => l && !/^[[(].*[\])]$/.test(l));
+
+        const normWord = (w) => String(w).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+
+        function wordSimilarity(a, b) {
+            if (a === b) return 1;
+            if (!a || !b) return 0;
+            let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+            for (let i = 1; i <= a.length; i++) {
+                const cur = [i];
+                for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+                prev = cur;
+            }
+            return 1 - prev[b.length] / Math.max(a.length, b.length);
+        }
+
+        function lineSimilarity(a, b) {
+            const A = a.split(/\s+/).map(normWord).filter(Boolean), B = b.split(/\s+/).map(normWord).filter(Boolean);
+            if (!A.length || !B.length) return 0;
+            const hits = A.filter((w) => B.some((x) => wordSimilarity(w, x) >= 0.75)).length;
+            return hits / Math.max(A.length, B.length);
+        }
+
+        function alignLyrics(text, segments) {
+            const lyrics = lyricLines(text);
+            const heard = segments.flatMap((seg, si) => (seg.words?.length ? seg.words : [{ word: seg.text, start: seg.start, end: seg.end }])
+                .map((w) => ({ n: normWord(w.word), start: w.start, end: w.end, si }))).filter((w) => w.n);
+            const toks = [];
+            lyrics.forEach((line, li) => line.split(/\s+/).forEach((w) => {
+                const n = normWord(w);
+                if (n) toks.push({ n, li });
+            }));
+
+            // Global alignment (Needleman–Wunsch) of lyric words against heard words.
+            const A = toks.length, B = heard.length, W = B + 1, GAP = -0.6;
+            const score = new Float32Array((A + 1) * W), from = new Uint8Array((A + 1) * W); // 0 match, 1 skip lyric, 2 skip heard
+            for (let i = 1; i <= A; i++) { score[i * W] = i * GAP; from[i * W] = 1; }
+            for (let j = 1; j <= B; j++) { score[j] = j * GAP; from[j] = 2; }
+            for (let i = 1; i <= A; i++) {
+                for (let j = 1; j <= B; j++) {
+                    const sim = wordSimilarity(toks[i - 1].n, heard[j - 1].n);
+                    const diag = score[(i - 1) * W + j - 1] + (sim >= 0.75 ? 2 * sim : -1);
+                    const up = score[(i - 1) * W + j] + GAP, left = score[i * W + j - 1] + GAP;
+                    const best = Math.max(diag, up, left);
+                    score[i * W + j] = best;
+                    from[i * W + j] = best === diag ? 0 : best === up ? 1 : 2;
+                }
+            }
+            const matched = lyrics.map(() => []), usedHeard = new Set();
+            for (let i = A, j = B; i > 0 || j > 0;) {
+                const f = i && j ? from[i * W + j] : i ? 1 : 2;
+                if (f === 0) {
+                    if (wordSimilarity(toks[i - 1].n, heard[j - 1].n) >= 0.75) {
+                        matched[toks[i - 1].li].unshift(heard[j - 1]);
+                        usedHeard.add(j - 1);
+                    }
+                    i--; j--;
+                } else if (f === 1) i--;
+                else j--;
+            }
+
+            const lines = lyrics.map((text, li) => {
+                const m = matched[li];
+                // A line needs a fair share of its words heard before its time is trusted.
+                const words = text.split(/\s+/).filter((w) => normWord(w)).length;
+                return m.length && m.length >= Math.min(2, words) * 0.5
+                    ? { t: m[0].start, e: m[m.length - 1].end, text }
+                    : { t: null, text };
+            });
+
+            // Repeats: leftover sung passages that match a lyric line become another caption of that line.
+            segments.forEach((seg, si) => {
+                const own = heard.filter((w) => w.si === si);
+                if (!own.length || own.filter((w, k) => usedHeard.has(heard.indexOf(w))).length / own.length > 0.3) return;
+                let best = null, bestSim = 0.55;
+                for (const l of lyrics) {
+                    const sim = lineSimilarity(seg.text, l);
+                    if (sim > bestSim) { best = l; bestSim = sim; }
+                }
+                if (best) lines.push({ t: seg.start, e: seg.end, text: best, repeat: true });
+            });
+
+            // Lines that couldn't be placed: estimate between their timed neighbours.
+            const timed = lines.filter((l) => l.t !== null).length;
+            const order = lines.filter((l) => !l.repeat);
+            for (let k = 0; k < order.length; k++) {
+                if (order[k].t !== null) continue;
+                let a = k - 1, b = k + 1;
+                while (a >= 0 && order[a].t === null) a--;
+                while (b < order.length && order[b].t === null) b++;
+                const ta = a >= 0 ? (order[a].e ?? order[a].t) : 0;
+                const tb = b < order.length ? order[b].t : ta + 4 * (b - a);
+                order[k].t = Math.round((ta + ((tb - ta) * (k - a)) / (b - a)) * 10) / 10;
+                order[k].est = true;
+            }
+            const out = lines.map(({ repeat, ...l }) => l).sort((x, y) => x.t - y.t);
+            return { lines: out, total: lyrics.length, placed: timed - lines.filter((l) => l.repeat).length, estimated: out.filter((l) => l.est).length, repeats: lines.filter((l) => l.repeat).length };
+        }
+
+        async function generate(s, v, st, label) {
+            st.status = `${label}: loading the audio…`;
+            renderCap(s.id);
+            const { pcm, rate } = await toMono(await fetchAudio(`/api/audio/${encodeURI(s[v].key)}`));
+            const parts = pieces(pcm, rate);
+            const lyrics = lyricsOf(s);
+            const prompt = `${s.title}. ${lyrics}`.replace(/\s+/g, ' ').slice(0, 600);
+            const results = new Array(parts.length);
+            let done = 0, next = 0;
+            const send = async (p) => {
+                const body = wav(pcm.subarray(p.from, p.to), rate);
+                const url = `/api/captions/transcribe?offset=${(p.from / rate).toFixed(2)}&prompt=${encodeURIComponent(prompt)}`;
+                try {
+                    return await api(url, { method: 'POST', raw: body });
+                } catch (e) {
+                    if (/OPENAI_API_KEY|Signed out/.test(e.message)) throw e;
+                    return api(url, { method: 'POST', raw: body }); // one retry
+                }
+            };
+            const worker = async () => {
+                while (next < parts.length) {
+                    const i = next++;
+                    results[i] = (await send(parts[i])).segments;
+                    st.status = `${label}: transcribing ${++done}/${parts.length}…`;
+                    renderCap(s.id);
+                }
+            };
+            await Promise.all([worker(), worker(), worker()]);
+            const segs = results.flat().sort((a, b) => a.start - b.start);
+            st.dirty[v] = true;
+            st.source[v] = 'auto';
+            if (!lyrics) {
+                st.lines[v] = toLines(segs);
+                return `${label}: ${st.lines[v].length} lines transcribed`;
+            }
+            const r = alignLyrics(lyrics, segs);
+            st.lines[v] = r.lines;
+            const weak = r.placed < r.total * 0.4;
+            return `${label}: ${r.placed} of ${r.total} lyric lines timed from the audio`
+                + (r.repeats ? `, ${r.repeats} repeats found` : '')
+                + (r.estimated ? `, ${r.estimated} estimated (amber)` : '')
+                + (weak ? ' – the AI struggled to follow these lyrics; Tap to time may be quicker' : '');
+        }
+
+        async function runGenerate(songId, versions) {
+            const { s, st } = capContext(songId);
+            if (versions.some((v) => st.dirty[v] || st.lines[v]?.length) && !confirm('Replace the existing captions with new AI ones?')) return;
+            st.busy = true;
+            st.tap = null;
+            try {
+                const done = [];
+                for (const v of versions) done.push(await generate(s, v, st, `Version ${VER_LABEL[v]}`));
+                st.status = `${done.join('. ')}. Check the lines (▶ plays from any line), fix what's wrong, then Save.`;
+            } catch (e) {
+                st.status = `Couldn't generate captions: ${e.message}`;
+            } finally {
+                st.busy = false;
+                renderCap(songId);
+            }
+        }
+
+        function tapHit(songId) {
+            const { li, st } = capContext(songId), t = st?.tap;
+            if (!t?.lines || t.i >= t.lines.length) return;
+            const audio = li.querySelector('[data-cap-audio]');
+            t.lines[t.i++].t = Math.round((audio?.currentTime || 0) * 10) / 10;
+            renderCap(songId);
+        }
+
+        // --- Editing ---
+
+        $('collections').addEventListener('toggle', (e) => {
+            if (!e.target.matches?.('details[data-cap]')) return;
+            const songId = e.target.closest('[data-s]').dataset.s, st = capFor(songId);
+            st.open = e.target.open;
+            if (st.open) openCap(songId);
+        }, true);
+
+        $('collections').addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-cap]');
+            if (!btn || btn.disabled) return;
+            const songId = btn.closest('[data-s]').dataset.s;
+            const { li, c, s, st } = capContext(songId);
+            const v = st.ver, audio = li.querySelector('[data-cap-audio]');
+            const row = btn.closest('.cap-line'), i = row ? Number(row.dataset.i) : -1;
+            const lines = st.lines[v] || [];
+            const changed = () => {
+                st.dirty[v] = true;
+                st.source[v] = 'edited';
+                st.status = '';
+                renderCap(songId);
+            };
+
+            switch (btn.dataset.cap) {
+                case 'ver':
+                    st.ver = btn.dataset.v;
+                    st.tap = null;
+                    renderCap(songId);
+                    break;
+                case 'gen':
+                    runGenerate(songId, [v]);
+                    break;
+                case 'gen-both':
+                    runGenerate(songId, ['v1', 'v2']);
+                    break;
+                case 'tap': {
+                    const own = (s.aboutKind || 'lyrics') === 'lyrics' ? (s.lyrics || '') : '';
+                    st.tap = { text: lines.length ? lines.map((l) => l.text).join('\n') : own, lines: null, i: 0 };
+                    renderCap(songId);
+                    break;
+                }
+                case 'tap-cancel':
+                    st.tap = null;
+                    renderCap(songId);
+                    break;
+                case 'tap-start': {
+                    const text = li.querySelector('[data-cap-paste]').value;
+                    const ls = text.split('\n').map((x) => x.trim()).filter(Boolean).map((x) => ({ t: null, text: x }));
+                    if (!ls.length) return toast('Paste some lyrics first');
+                    st.tap = { text, lines: ls, i: 0 };
+                    renderCap(songId);
+                    const a = li.querySelector('[data-cap-audio]');
+                    a.currentTime = 0;
+                    a.play().catch(() => toast('Press play on the player, then tap'));
+                    break;
+                }
+                case 'tap-hit':
+                    tapHit(songId);
+                    break;
+                case 'tap-undo':
+                    if (st.tap.i > 0) st.tap.lines[--st.tap.i].t = null;
+                    renderCap(songId);
+                    break;
+                case 'tap-done': {
+                    const timed = st.tap.lines?.filter((l) => l.t !== null) || [];
+                    if (timed.length) {
+                        st.lines[v] = timed.map((l) => ({ t: l.t, text: l.text }));
+                        st.dirty[v] = true;
+                        st.source[v] = 'tap';
+                    }
+                    st.tap = null;
+                    audio?.pause();
+                    st.status = timed.length ? `${timed.length} lines timed – check them, then Save.` : '';
+                    renderCap(songId);
+                    break;
+                }
+                case 'play':
+                    if (!audio) return;
+                    audio.currentTime = Math.max(0, lines[i].t - 0.3);
+                    audio.play().catch(() => {});
+                    break;
+                case 'stamp':
+                    if (!audio) return;
+                    lines[i].t = Math.round(audio.currentTime * 10) / 10;
+                    delete lines[i].e;
+                    delete lines[i].est;
+                    lines.sort((a, b) => a.t - b.t);
+                    changed();
+                    break;
+                case 'del':
+                    lines.splice(i, 1);
+                    changed();
+                    break;
+                case 'add': {
+                    const t = audio && audio.currentTime > 0 ? Math.round(audio.currentTime * 10) / 10 : (lines.at(-1)?.t ?? 0) + 3;
+                    st.lines[v] = [...lines, { t, text: '' }].sort((a, b) => a.t - b.t);
+                    changed();
+                    break;
+                }
+                case 'shift': {
+                    const d = Number(btn.dataset.d);
+                    lines.forEach((l) => {
+                        l.t = Math.max(0, Math.round((l.t + d) * 10) / 10);
+                        if (l.e) l.e = Math.max(l.t + 0.1, l.e + d);
+                    });
+                    changed();
+                    break;
+                }
+                case 'save':
+                case 'clear': {
+                    const clearing = btn.dataset.cap === 'clear';
+                    if (clearing && !confirm(`Remove version ${VER_LABEL[v]}'s captions from the listening room?`)) return;
+                    if (!clearing && li.querySelector('[data-cap-t].invalid')) return toast('Fix the highlighted times first (m:ss.s)');
+                    api('/api/captions', { method: 'POST', body: { collectionId: c.id, songId, version: v, lines: clearing ? [] : lines, source: st.source[v] } })
+                        .then((res) => {
+                            if (res.captions) s.captions = res.captions;
+                            else delete s.captions;
+                            st.dirty[v] = false;
+                            if (clearing) st.lines[v] = [];
+                            st.status = '';
+                            toast(clearing ? 'Captions removed.' : `Version ${VER_LABEL[v]} captions saved.`);
+                            renderCap(songId);
+                        })
+                        .catch((err) => toast(err.message));
+                    break;
+                }
+            }
+        });
+
+        // Space taps while a tap session is running (outside text fields and buttons).
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== ' ' || e.target.closest?.('input, textarea, button, audio, select')) return;
+            const songId = [...capState.entries()].find(([, st]) => st.tap?.lines)?.[0];
+            if (!songId) return;
+            e.preventDefault();
+            tapHit(songId);
+        });
+
+        // Typing in the line list edits state in place (no re-render, so focus stays put).
+        $('collections').addEventListener('input', (e) => {
+            const row = e.target.closest('.cap-line');
+            if (!row) return;
+            const songId = row.closest('[data-s]').dataset.s, st = capFor(songId), line = st.lines[st.ver]?.[Number(row.dataset.i)];
+            if (!line) return;
+            if (e.target.matches('[data-cap-text]')) line.text = e.target.value;
+            if (e.target.matches('[data-cap-t]')) {
+                const t = parseT(e.target.value);
+                e.target.classList.toggle('invalid', !Number.isFinite(t));
+                if (Number.isFinite(t)) {
+                    line.t = t;
+                    delete line.e;
+                    delete line.est;
+                    row.classList.remove('est');
+                }
+            }
+            st.source[st.ver] = 'edited';
+            if (!st.dirty[st.ver]) {
+                st.dirty[st.ver] = true;
+                const pos = e.target.selectionStart, field = e.target.matches('[data-cap-t]') ? 'data-cap-t' : 'data-cap-text', idx = row.dataset.i;
+                renderCap(songId);
+                const again = document.querySelector(`.song[data-s="${CSS.escape(songId)}"] .cap-line[data-i="${idx}"] [${field}]`);
+                again?.focus();
+                again?.setSelectionRange?.(pos, pos);
+            }
+        });
+
+        // Re-sort once a time field is left, so the list stays in order.
+        $('collections').addEventListener('focusout', (e) => {
+            if (!e.target.matches?.('[data-cap-t]') || e.target.classList.contains('invalid')) return;
+            const songId = e.target.closest('[data-s]').dataset.s, st = capFor(songId), list = st.lines[st.ver];
+            if (!list || list.every((l, k) => !k || list[k - 1].t <= l.t)) return;
+            list.sort((a, b) => a.t - b.t);
+            renderCap(songId);
+        });
+
+        window.addEventListener('beforeunload', (e) => {
+            if ([...capState.values()].some((st) => st.dirty.v1 || st.dirty.v2)) e.preventDefault();
+        });
 
         $('collections').addEventListener('click', (e) => {
             const btn = e.target.closest('[data-act]');
