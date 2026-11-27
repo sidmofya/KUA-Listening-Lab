@@ -1305,7 +1305,8 @@
             new Image().src = skin.image;
         }
 
-        async function applySkin(skin, { instant = false } = {}) {
+        // behindWelcome: swap instantly if the welcome card still hides the room, else crossfade.
+        async function applySkin(skin, { behindWelcome = false } = {}) {
             const token = ++skinToken;
             pendingSkin = skin;
             const incoming = new Image();
@@ -1343,7 +1344,8 @@
                 next.style.transition = 'none';
                 next.style.opacity = '0';
             };
-            if (instant || matchMedia('(prefers-reduced-motion: reduce)').matches || !back.src) return settle();
+            const hidden = behindWelcome && $('welcome').classList.contains('open');
+            if (hidden || matchMedia('(prefers-reduced-motion: reduce)').matches || !back.src) return settle();
             next.src = skin.image;
             next.style.transition = '';
             next.getBoundingClientRect(); // start the fade from fully transparent
@@ -3006,9 +3008,10 @@
             updateUI();
 
             const route = parseRoute();
-            // A shared link already shows its collection's room behind the welcome card.
+            // A shared link already shows its collection's room behind the welcome card. Not awaited:
+            // the room image can take seconds on a phone, and the buttons must work meanwhile.
             const firstSkin = skinFor(route && route.ci !== -1 ? COLLECTIONS[route.ci] : null);
-            if (firstSkin !== currentSkin) await applySkin(firstSkin, { instant: true });
+            if (firstSkin !== currentSkin) applySkin(firstSkin, { behindWelcome: true });
             if (route && route.ci !== -1) {
                 const c = COLLECTIONS[route.ci];
                 $('welcomeSent').textContent = route.si !== -1 ? `You've been sent “${c.songs[route.si].title}”` : `You've been sent ${c.name}`;
@@ -3047,7 +3050,9 @@
             };
             $('collections').addEventListener('pointerover', warm);
             $('collections').addEventListener('focusin', warm);
-            (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => COLLECTIONS.forEach(prefetchSkin), { timeout: 8000 });
+            // Each room is ~0.5–0.8 MB, so skip the warm-up for listeners on Data Saver or a 2G connection.
+            const lean = navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || ''));
+            if (!lean) (window.requestIdleCallback || ((f) => setTimeout(f, 4000)))(() => COLLECTIONS.forEach(prefetchSkin), { timeout: 8000 });
 
             $('aboutToggle').addEventListener('click', () => {
                 const open = $('aboutPanel').classList.toggle('expanded');
