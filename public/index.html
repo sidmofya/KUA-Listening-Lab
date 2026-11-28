@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>AB/noCD – KŮA Listening Lab</title>
-    <meta name="description" content="Two versions of every song. Listen to A and B, then pick the one that should be released.">
+    <meta name="description" content="Two versions of every song. Listen to A and B, and vote for the one you like better – it helps us know what kind of music to make more of.">
     <meta property="og:title" content="AB/noCD – KŮA Listening Lab">
-    <meta property="og:description" content="Two versions of every song. Listen to A and B, then pick the one that should be released.">
+    <meta property="og:description" content="Two versions of every song. Listen to A and B, and vote for the one you like better – it helps us know what kind of music to make more of.">
     <meta property="og:image" content="https://listen.sidmofya.com/assets/scene-wide.jpg">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary_large_image">
@@ -1179,7 +1179,7 @@
                 <div class="kicker">KŮA Listening Lab</div>
                 <div class="sent" id="welcomeSent"></div>
                 <h1 style="margin-top:8px">AB/<em>no</em>CD</h1>
-                <p>Every song here comes in two versions. Switch between A and B as often as you like – each one picks up where you left it. When you know which you'd keep, hit <b>Vote A or B</b>.</p>
+                <p>Every song here comes in two versions. Switch between A and B as often as you like – each one picks up where you left it. When you know which you like better, hit <b>Vote A or B</b>. Your vote helps us know what kind of music to make more of.</p>
                 <button class="cta" type="submit">Enter the room</button>
             </form>
         </div>
@@ -2670,7 +2670,7 @@
             const url = linkFor(collection, s);
             const title = `${s ? s.title : collection.name} – AB/noCD`;
             const text = s
-                ? `Two versions of “${s.title}” by ${s.artist || 'KŮA'}. Listen to A and B, then pick the one that should be released.`
+                ? `Two versions of “${s.title}” by ${s.artist || 'KŮA'}. Listen to A and B, and vote for the one you like better.`
                 : `${collection.name} by KŮA: two versions of every song. You pick.`;
             if (navigator.share && matchMedia('(pointer: coarse)').matches) {
                 try {
@@ -2852,7 +2852,7 @@
         function showDone() {
             const nextIdx = COLLECTIONS.findIndex((c) => votedCount(c) < c.songs.length);
             const more = collection.total > collection.songs.length ? ` More songs are on the way – check back soon.` : '';
-            $('doneText').textContent = `You've voted on all ${collection.songs.length} songs in ${collection.name}. Your picks decide which versions get released.${more}`;
+            $('doneText').textContent = `You've voted on all ${collection.songs.length} songs in ${collection.name}. Your votes help us know what kind of music to make more of.${more}`;
             $('doneNext').hidden = nextIdx === -1;
             $('doneNext').dataset.c = nextIdx;
             $('done').classList.add('open');
