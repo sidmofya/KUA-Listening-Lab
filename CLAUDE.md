@@ -6,14 +6,15 @@ configuration in `~/.claude/CLAUDE.md`. Claude reads both at the start of every 
 ## What This Is
 
 A listening room for KŮA's album (listen.sidmofya.com). Each song exists in two versions;
-listeners hear both on a two-deck hi-fi in an AI-rendered room and vote for the one they'd
-keep. Their picks decide which versions get released. Sid uploads songs and manages
+listeners hear both on a two-deck hi-fi in an AI-rendered room and vote for the one they like
+better. Votes tell KŮA what kind of music to make more of (they don't decide what gets released,
+and listener-facing copy shouldn't say so). Sid uploads songs and manages
 collections in the Studio (`/studio`). Each collection can be heard in its own room skin,
 named after a region of KwaZuri.
 
 ## What Success Looks Like
 
-- Listeners finish whole collections and vote on every song (votes decide the release).
+- Listeners finish whole collections and vote on every song (votes show what kind of music to make more of).
 - Shared song and collection links bring new listeners in.
 - (Sid to refine: the outcomes a great month would show.)
 
